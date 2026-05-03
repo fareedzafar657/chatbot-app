@@ -1,0 +1,68 @@
+'use client';
+
+import { Sparkles } from 'lucide-react';
+import { Message } from '@/lib/types';
+import { MarkdownRenderer } from './MarkdownRenderer';
+
+function formatTime(date: Date): string {
+  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+interface MessageBubbleProps {
+  message: Message;
+  isStreaming?: boolean;
+}
+
+export function MessageBubble({ message, isStreaming = false }: MessageBubbleProps) {
+  const isUser = message.role === 'user';
+
+  if (isUser) {
+    return (
+      <div className="flex justify-end mb-5 group">
+        <div className="max-w-[72%]">
+          <div className="bg-[#18181B] text-white px-4 py-3 rounded-2xl rounded-br-sm text-[14px] leading-relaxed whitespace-pre-wrap">
+            {message.content}
+          </div>
+          <div className="text-[11px] text-gray-400 mt-1.5 text-right opacity-0 group-hover:opacity-100 transition-opacity">
+            {formatTime(message.timestamp)}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex gap-3 mb-6 group">
+      {/* AI Avatar */}
+      <div className="flex-shrink-0 mt-0.5">
+        <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shadow-sm">
+          <Sparkles className="w-3.5 h-3.5 text-white" />
+        </div>
+      </div>
+
+      {/* Message content */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 mb-1.5">
+          <span className="text-[12px] font-semibold text-gray-900">Chatbot</span>
+          {isStreaming && (
+            <span className="text-[10px] text-violet-500 font-medium tracking-wide uppercase">
+              Generating…
+            </span>
+          )}
+        </div>
+        <div className="text-gray-800">
+          {message.content ? (
+            <MarkdownRenderer content={message.content} isStreaming={isStreaming} />
+          ) : (
+            isStreaming && (
+              <span className="cursor-blink inline-block w-[2px] h-[1em] bg-gray-500 align-middle" />
+            )
+          )}
+        </div>
+        <div className="text-[11px] text-gray-400 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          {formatTime(message.timestamp)}
+        </div>
+      </div>
+    </div>
+  );
+}
