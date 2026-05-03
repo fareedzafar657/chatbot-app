@@ -1,13 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, Trash2, Sparkles, LogOut, MessageSquare, Settings } from 'lucide-react';
 import { useChatStore } from '@/lib/store';
 import { useAuthStore } from '@/lib/authStore';
 import { Session } from '@/lib/types';
 
-function formatRelativeTime(date: Date): string {
+function formatRelativeTime(dateStr: string): string {
+  const date = new Date(dateStr);
   const now = new Date();
   const diff = now.getTime() - date.getTime();
   const minutes = Math.floor(diff / 60000);
@@ -54,7 +55,7 @@ function SessionItem({ session, isActive, onSelect, onDelete }: SessionItemProps
               isActive ? 'text-gray-900' : 'text-gray-700'
             }`}
           >
-            {session.title}
+            {session.title ?? 'New Conversation'}
           </span>
           {hovered && (
             <button
@@ -72,11 +73,11 @@ function SessionItem({ session, isActive, onSelect, onDelete }: SessionItemProps
           <span className="text-[11px] text-gray-400">
             {formatRelativeTime(session.updatedAt)}
           </span>
-          {session.branches.length > 1 && (
+          {(session.branchCount ?? 0) > 1 && (
             <>
               <span className="text-gray-300">·</span>
               <span className="text-[11px] text-violet-400">
-                {session.branches.length} branches
+                {session.branchCount} branches
               </span>
             </>
           )}
@@ -93,11 +94,23 @@ export function Sidebar() {
   const setActiveSession = useChatStore((state) => state.setActiveSession);
   const newSession = useChatStore((state) => state.newSession);
   const deleteSession = useChatStore((state) => state.deleteSession);
+  const initSessions = useChatStore((state) => state.initSessions);
+  const isLoadingSessions = useChatStore((state) => state.isLoadingSessions);
+  const hasMoreSessions = useChatStore((state) => state.hasMoreSessions);
+  const loadMoreSessions = useChatStore((state) => state.loadMoreSessions);
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
+  const isAuthLoading = useAuthStore((state) => state.isLoading);
 
-  const handleLogout = () => {
-    logout();
+  useEffect(() => {
+    if (!isAuthLoading && user) {
+      initSessions();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthLoading, user]);
+
+  const handleLogout = async () => {
+    await logout();
     router.push('/login');
   };
 
@@ -106,11 +119,11 @@ export function Sidebar() {
   today.setHours(0, 0, 0, 0);
   const yesterday = new Date(today.getTime() - 86400000);
 
-  const todaySessions = sessions.filter((s) => s.updatedAt >= today);
+  const todaySessions = sessions.filter((s) => new Date(s.updatedAt) >= today);
   const yesterdaySessions = sessions.filter(
-    (s) => s.updatedAt >= yesterday && s.updatedAt < today
+    (s) => new Date(s.updatedAt) >= yesterday && new Date(s.updatedAt) < today
   );
-  const olderSessions = sessions.filter((s) => s.updatedAt < yesterday);
+  const olderSessions = sessions.filter((s) => new Date(s.updatedAt) < yesterday);
 
   const renderGroup = (label: string, items: Session[]) => {
     if (items.length === 0) return null;
@@ -124,11 +137,11 @@ export function Sidebar() {
         <div className="space-y-0.5">
           {items.map((s) => (
             <SessionItem
-              key={s.id}
+              key={s.sessionId}
               session={s}
-              isActive={s.id === activeSessionId}
-              onSelect={() => setActiveSession(s.id)}
-              onDelete={() => deleteSession(s.id)}
+              isActive={s.sessionId === activeSessionId}
+              onSelect={() => setActiveSession(s.sessionId)}
+              onDelete={() => deleteSession(s.sessionId)}
             />
           ))}
         </div>
@@ -159,7 +172,15 @@ export function Sidebar() {
 
       {/* Sessions list */}
       <div className="flex-1 overflow-y-auto px-1">
-        {sessions.length === 0 ? (
+        {isLoadingSessions && sessions.length === 0 ? (
+          <div className="px-4 py-6 flex items-center justify-center gap-2 text-[13px] text-gray-400">
+            <svg className="animate-spin h-3.5 w-3.5 text-gray-400" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+            Loading…
+          </div>
+        ) : sessions.length === 0 ? (
           <div className="px-4 py-6 text-center text-[13px] text-gray-400">
             No conversations yet
           </div>
@@ -168,6 +189,16 @@ export function Sidebar() {
             {renderGroup('Today', todaySessions)}
             {renderGroup('Yesterday', yesterdaySessions)}
             {renderGroup('Older', olderSessions)}
+            {hasMoreSessions && (
+              <div className="px-3 pb-4">
+                <button
+                  onClick={loadMoreSessions}
+                  className="w-full py-2 text-[12px] text-gray-400 hover:text-gray-600 font-medium transition-colors"
+                >
+                  Load more
+                </button>
+              </div>
+            )}
           </>
         )}
       </div>

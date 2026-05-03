@@ -1,272 +1,498 @@
 import { create } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
 import { Session, Message, Branch } from './types';
-import { initialSessions, AI_RESPONSES } from './mockData';
+import { api } from './api';
+import { streamChat } from './stream';
 
-let idCounter = 1000;
-const genId = () => `id-${++idCounter}-${Date.now()}`;
-
-// Module-level streaming interval (outside React lifecycle)
-let streamingInterval: ReturnType<typeof setInterval> | null = null;
-let aiResponseIndex = 0;
+function genTempId(): string {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
 
 interface ChatState {
   sessions: Session[];
-  activeSessionId: string;
+  activeSessionId: string | null;
+  activeBranchId: string | null;
+  messages: Message[];
+  branches: Branch[];
   isStreaming: boolean;
   streamingMessageId: string | null;
+  isLoadingSessions: boolean;
+  isLoadingMessages: boolean;
   showBranchModal: boolean;
+  hasMoreMessages: boolean;
+  messagesCursor: string | null;
+  abortController: AbortController | null;
+  errorMessage: string | null;
+  hasMoreSessions: boolean;
+  sessionsCursor: string | null;
 }
 
 interface ChatActions {
-  setActiveSession: (id: string) => void;
-  newSession: () => void;
-  deleteSession: (id: string) => void;
-  sendMessage: (content: string) => void;
-  stopStreaming: () => void;
-  setStreaming: (streaming: boolean) => void;
-  addMessage: (sessionId: string, message: Message) => void;
-  appendToLastMessage: (sessionId: string, messageId: string, content: string) => void;
-  toggleBranchModal: (show: boolean) => void;
-  forkBranch: (name: string, messageIds: string[]) => void;
-  setActiveBranch: (branchId: string) => void;
+  initSessions(): Promise<void>;
+  loadMoreSessions(): Promise<void>;
+  setActiveSession(sessionId: string): void;
+  loadMessages(branchId: string, cursor?: string): Promise<void>;
+  loadMoreMessages(): Promise<void>;
+  loadBranches(sessionId: string): Promise<void>;
+  newSession(): void;
+  deleteSession(sessionId: string): void;
+  sendMessage(prompt: string): void;
+  stopStreaming(): void;
+  setStreaming(streaming: boolean): void;
+  addMessage(sessionId: string, message: Message): void;
+  appendToLastMessage(sessionId: string, messageId: string, content: string): void;
+  toggleBranchModal(show: boolean): void;
+  forkBranch(selectedMsgIds: string[], label?: string): void;
+  setActiveBranch(branchId: string): void;
+  dismissError(): void;
 }
 
 export type ChatStore = ChatState & ChatActions;
 
 export const useChatStore = create<ChatStore>((set, get) => ({
-  sessions: initialSessions,
-  activeSessionId: 'session-1',
+  sessions: [],
+  activeSessionId: null,
+  activeBranchId: null,
+  messages: [],
+  branches: [],
   isStreaming: false,
   streamingMessageId: null,
+  isLoadingSessions: false,
+  isLoadingMessages: false,
   showBranchModal: false,
+  hasMoreMessages: false,
+  messagesCursor: null,
+  abortController: null,
+  errorMessage: null,
+  hasMoreSessions: false,
+  sessionsCursor: null,
 
-  setActiveSession: (id) => {
-    if (streamingInterval) {
-      clearInterval(streamingInterval);
-      streamingInterval = null;
+  initSessions: async () => {
+    set({ isLoadingSessions: true });
+    try {
+      const result = await api.listSessions();
+      set({
+        sessions: result.items,
+        hasMoreSessions: result.has_more,
+        sessionsCursor: result.next_cursor ?? null,
+        isLoadingSessions: false,
+      });
+      const { activeSessionId } = get();
+      if (!activeSessionId && result.items.length > 0) {
+        get().setActiveSession(result.items[0].sessionId);
+      } else if (!activeSessionId && result.items.length === 0) {
+        // No existing sessions — create a temp session so user can start typing
+        get().newSession();
+      }
+    } catch (err) {
+      set({ isLoadingSessions: false, errorMessage: (err as Error).message });
+      // Even on error, ensure there's a session to work with
+      const { activeSessionId } = get();
+      if (!activeSessionId) {
+        get().newSession();
+      }
     }
-    set({ activeSessionId: id, isStreaming: false, streamingMessageId: null });
+  },
+
+  loadMoreSessions: async () => {
+    const { sessionsCursor, sessions } = get();
+    if (!sessionsCursor) return;
+    try {
+      const result = await api.listSessions(sessionsCursor);
+      set({
+        sessions: [...sessions, ...result.items],
+        hasMoreSessions: result.has_more,
+        sessionsCursor: result.next_cursor ?? null,
+      });
+    } catch (err) {
+      set({ errorMessage: (err as Error).message });
+    }
+  },
+
+  setActiveSession: (sessionId) => {
+    const { abortController } = get();
+    if (abortController) abortController.abort();
+
+    const session = get().sessions.find((s) => s.sessionId === sessionId);
+    if (!session) return;
+
+    set({
+      activeSessionId: sessionId,
+      activeBranchId: session.activeBranchId,
+      messages: [],
+      branches: [],
+      isStreaming: false,
+      streamingMessageId: null,
+      abortController: null,
+      hasMoreMessages: false,
+      messagesCursor: null,
+    });
+
+    get().loadMessages(session.activeBranchId);
+    get().loadBranches(sessionId);
+  },
+
+  loadMessages: async (branchId, cursor?) => {
+    set({ isLoadingMessages: true });
+    try {
+      const result = await api.listMessages(branchId, cursor);
+      set((state) => ({
+        // Cursor-based pagination: prepend older messages at the top
+        messages: cursor ? [...result.items, ...state.messages] : result.items,
+        hasMoreMessages: result.has_more,
+        messagesCursor: result.next_cursor ?? null,
+        isLoadingMessages: false,
+      }));
+    } catch (err) {
+      set({ isLoadingMessages: false, errorMessage: (err as Error).message });
+    }
+  },
+
+  loadMoreMessages: async () => {
+    const { messagesCursor, activeBranchId } = get();
+    if (!messagesCursor || !activeBranchId) return;
+    await get().loadMessages(activeBranchId, messagesCursor);
+  },
+
+  loadBranches: async (sessionId) => {
+    try {
+      const branches = await api.listBranches(sessionId);
+      set((state) => ({
+        branches,
+        sessions: state.sessions.map((s) =>
+          s.sessionId === sessionId ? { ...s, branchCount: branches.length } : s
+        ),
+      }));
+    } catch (err) {
+      set({ errorMessage: (err as Error).message });
+    }
   },
 
   newSession: () => {
-    const id = genId();
-    const branchId = genId();
-    const now = new Date();
-    const session: Session = {
-      id,
-      title: 'New Conversation',
-      activeBranchId: branchId,
-      branches: [
-        {
-          id: branchId,
-          name: 'main',
-          parentBranchId: null,
-          messageIds: [],
-          createdAt: now,
-        },
-      ],
+    const { abortController } = get();
+    if (abortController) abortController.abort();
+    set({
+      activeSessionId: genTempId(),
+      activeBranchId: null,
       messages: [],
-      createdAt: now,
-      updatedAt: now,
-    };
-    set((state) => ({
-      sessions: [session, ...state.sessions],
-      activeSessionId: id,
-    }));
-  },
-
-  deleteSession: (id) => {
-    set((state) => {
-      const remaining = state.sessions.filter((s) => s.id !== id);
-      return {
-        sessions: remaining,
-        activeSessionId:
-          state.activeSessionId === id
-            ? remaining[0]?.id ?? ''
-            : state.activeSessionId,
-      };
+      branches: [],
+      isStreaming: false,
+      streamingMessageId: null,
+      abortController: null,
+      hasMoreMessages: false,
+      messagesCursor: null,
     });
   },
 
-  setStreaming: (streaming) => set({ isStreaming: streaming }),
+  deleteSession: async (sessionId) => {
+    // Optimistic removal
+    set((state) => {
+      const remaining = state.sessions.filter((s) => s.sessionId !== sessionId);
+      const wasActive = state.activeSessionId === sessionId;
+      return {
+        sessions: remaining,
+        ...(wasActive && {
+          activeSessionId: remaining[0]?.sessionId ?? null,
+          activeBranchId: remaining[0]?.activeBranchId ?? null,
+          messages: [],
+          branches: [],
+        }),
+      };
+    });
 
-  addMessage: (sessionId, message) => {
-    set((state) => ({
-      sessions: state.sessions.map((s) =>
-        s.id === sessionId ? { ...s, messages: [...s.messages, message] } : s
-      ),
-    }));
+    // Load the new active session's data if we switched
+    const { activeSessionId } = get();
+    if (activeSessionId && activeSessionId !== sessionId) {
+      const session = get().sessions.find((s) => s.sessionId === activeSessionId);
+      if (session) {
+        get().loadMessages(session.activeBranchId);
+        get().loadBranches(activeSessionId);
+      }
+    }
+
+    try {
+      await api.deleteSession(sessionId);
+    } catch (err) {
+      set({ errorMessage: (err as Error).message });
+    }
   },
 
-  appendToLastMessage: (sessionId, messageId, content) => {
-    set((state) => ({
-      sessions: state.sessions.map((s) => {
-        if (s.id !== sessionId) return s;
-        return {
-          ...s,
-          messages: s.messages.map((m) =>
-            m.id === messageId ? { ...m, content } : m
-          ),
-        };
-      }),
-    }));
-  },
-
-  sendMessage: (content) => {
-    const { activeSessionId, isStreaming, sessions } = get();
+  sendMessage: async (prompt) => {
+    const { activeSessionId, activeBranchId, isStreaming } = get();
     if (isStreaming || !activeSessionId) return;
 
-    const activeSession = sessions.find((s) => s.id === activeSessionId);
-    if (!activeSession) return;
-
-    const userMsgId = genId();
-    const aiMsgId = genId();
-    const now = new Date();
+    const tempUserMsgId = `temp-user-${genTempId()}`;
+    const tempAiMsgId = `temp-ai-${genTempId()}`;
+    const now = new Date().toISOString();
 
     const userMsg: Message = {
-      id: userMsgId,
+      msgId: tempUserMsgId,
+      sessionId: activeSessionId,
+      branchId: activeBranchId ?? '',
       role: 'user',
-      content,
-      timestamp: now,
+      content: prompt,
+      state: 'active',
+      createdAt: now,
+      updatedAt: now,
     };
     const aiMsg: Message = {
-      id: aiMsgId,
+      msgId: tempAiMsgId,
+      sessionId: activeSessionId,
+      branchId: activeBranchId ?? '',
       role: 'assistant',
       content: '',
-      timestamp: new Date(now.getTime() + 100),
+      state: 'active',
+      createdAt: new Date(Date.now() + 100).toISOString(),
+      updatedAt: new Date(Date.now() + 100).toISOString(),
     };
 
+    const controller = new AbortController();
+
     set((state) => ({
-      sessions: state.sessions.map((s) => {
-        if (s.id !== activeSessionId) return s;
-        return {
-          ...s,
-          title:
-            s.messages.length === 0
-              ? content.slice(0, 45) + (content.length > 45 ? '...' : '')
-              : s.title,
-          messages: [...s.messages, userMsg, aiMsg],
-          branches: s.branches.map((b) =>
-            b.id === s.activeBranchId
-              ? { ...b, messageIds: [...b.messageIds, userMsgId, aiMsgId] }
-              : b
-          ),
-          updatedAt: now,
-        };
-      }),
+      messages: [...state.messages, userMsg, aiMsg],
       isStreaming: true,
-      streamingMessageId: aiMsgId,
+      streamingMessageId: tempAiMsgId,
+      abortController: controller,
     }));
 
-    const responseIdx = aiResponseIndex % AI_RESPONSES.length;
-    aiResponseIndex++;
-    const fullResponse = AI_RESPONSES[responseIdx];
-    let charIndex = 0;
-    const capturedSessionId = activeSessionId;
+    // Track real IDs as they arrive from the stream
+    let realSessionId = activeSessionId;
+    let realBranchId = activeBranchId ?? '';
 
-    streamingInterval = setInterval(() => {
-      const step = Math.floor(Math.random() * 6) + 3;
-      charIndex = Math.min(charIndex + step, fullResponse.length);
+    try {
+      await streamChat(
+        { prompt, sessionId: activeSessionId, branchId: activeBranchId },
+        {
+          onMetadata: (sId, bId) => {
+            realSessionId = sId;
+            realBranchId = bId;
+            set((state) => {
+              const isNewSession = state.activeSessionId !== sId;
+              const updatedMessages = state.messages.map((m) => ({
+                ...m,
+                sessionId: sId,
+                branchId: bId,
+              }));
+              const newSessions = isNewSession
+                ? [
+                    {
+                      sessionId: sId,
+                      userId: '',
+                      trunkBranchId: bId,
+                      activeBranchId: bId,
+                      title: prompt.slice(0, 45) + (prompt.length > 45 ? '…' : ''),
+                      createdAt: now,
+                      updatedAt: now,
+                    } as Session,
+                    ...state.sessions,
+                  ]
+                : state.sessions;
+              return {
+                activeSessionId: sId,
+                activeBranchId: bId,
+                messages: updatedMessages,
+                sessions: newSessions,
+              };
+            });
+          },
 
-      set((state) => ({
-        sessions: state.sessions.map((s) => {
-          if (s.id !== capturedSessionId) return s;
-          return {
-            ...s,
-            messages: s.messages.map((m) =>
-              m.id === aiMsgId
-                ? { ...m, content: fullResponse.slice(0, charIndex) }
-                : m
-            ),
-          };
-        }),
-      }));
+          onUserMessage: (msgId) => {
+            set((state) => ({
+              messages: state.messages.map((m) =>
+                m.msgId === tempUserMsgId
+                  ? { ...m, msgId, branchId: realBranchId }
+                  : m
+              ),
+            }));
+          },
 
-      if (charIndex >= fullResponse.length) {
-        clearInterval(streamingInterval!);
-        streamingInterval = null;
-        set({ isStreaming: false, streamingMessageId: null });
+          onDelta: (text) => {
+            set((state) => ({
+              messages: state.messages.map((m) =>
+                m.msgId === tempAiMsgId
+                  ? { ...m, content: m.content + text }
+                  : m
+              ),
+            }));
+          },
+
+          onDone: (msgId, msgState) => {
+            set((state) => ({
+              messages: state.messages.map((m) =>
+                m.msgId === tempAiMsgId
+                  ? { ...m, msgId, state: msgState as Message['state'], branchId: realBranchId }
+                  : m
+              ),
+              isStreaming: false,
+              streamingMessageId: null,
+              abortController: null,
+            }));
+
+            // Refresh sessions list (updates title, adds new session to sidebar)
+            api
+              .listSessions()
+              .then((result) => {
+                useChatStore.setState((state) => ({
+                  sessions: result.items.map((s) => ({
+                    ...s,
+                    branchCount: state.sessions.find((ss) => ss.sessionId === s.sessionId)
+                      ?.branchCount,
+                  })),
+                  hasMoreSessions: result.has_more,
+                  sessionsCursor: result.next_cursor ?? null,
+                }));
+              })
+              .catch(() => {});
+
+            // Refresh branches for updated count
+            if (realSessionId) {
+              api
+                .listBranches(realSessionId)
+                .then((branches) => {
+                  useChatStore.setState((state) => ({
+                    branches,
+                    sessions: state.sessions.map((s) =>
+                      s.sessionId === realSessionId
+                        ? { ...s, branchCount: branches.length }
+                        : s
+                    ),
+                  }));
+                })
+                .catch(() => {});
+            }
+          },
+
+          onError: (message) => {
+            set((state) => ({
+              messages: state.messages.filter(
+                (m) => m.msgId !== tempAiMsgId && m.msgId !== tempUserMsgId
+              ),
+              isStreaming: false,
+              streamingMessageId: null,
+              abortController: null,
+              errorMessage: message,
+            }));
+          },
+        },
+        controller.signal
+      );
+    } catch (err) {
+      if ((err as Error).name !== 'AbortError') {
+        set((state) => ({
+          messages: state.messages.filter(
+            (m) => m.msgId !== tempAiMsgId && m.msgId !== tempUserMsgId
+          ),
+          isStreaming: false,
+          streamingMessageId: null,
+          abortController: null,
+          errorMessage: (err as Error).message,
+        }));
       }
-    }, 25);
+    }
   },
 
-  stopStreaming: () => {
-    if (streamingInterval) {
-      clearInterval(streamingInterval);
-      streamingInterval = null;
+  stopStreaming: async () => {
+    const { abortController, messages } = get();
+    const streamingMsg = [...messages].reverse().find((m) => m.role === 'assistant');
+
+    if (abortController) abortController.abort();
+    set({ isStreaming: false, streamingMessageId: null, abortController: null });
+
+    if (streamingMsg && !streamingMsg.msgId.startsWith('temp-')) {
+      try {
+        await api.patchMessage(streamingMsg.msgId, { state: 'stopped' });
+        set((state) => ({
+          messages: state.messages.map((m) =>
+            m.msgId === streamingMsg.msgId ? { ...m, state: 'stopped' } : m
+          ),
+        }));
+      } catch {
+        // Ignore patch errors on manual stop
+      }
     }
-    set({ isStreaming: false, streamingMessageId: null });
   },
+
+  // Legacy stubs — kept so no component imports break
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  setStreaming: (_s: boolean) => {},
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  addMessage: (_sid: string, _msg: Message) => {},
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  appendToLastMessage: (_sid: string, _mid: string, _c: string) => {},
 
   toggleBranchModal: (show) => set({ showBranchModal: show }),
 
-  forkBranch: (name, messageIds) => {
-    const { activeSessionId, sessions } = get();
-    const activeSession = sessions.find((s) => s.id === activeSessionId);
-    if (!activeSession) return;
+  forkBranch: async (selectedMsgIds, label?) => {
+    const { activeSessionId, activeBranchId } = get();
+    if (!activeSessionId || !activeBranchId) return;
 
-    const branchId = genId();
-    const now = new Date();
-    const newBranch: Branch = {
-      id: branchId,
-      name,
-      parentBranchId: activeSession.activeBranchId,
-      messageIds,
-      createdAt: now,
-    };
+    try {
+      const newBranch = await api.forkBranch({
+        session_id: activeSessionId,
+        parent_branch_id: activeBranchId,
+        selected_msg_ids: selectedMsgIds,
+        label,
+      });
 
-    set((state) => ({
-      sessions: state.sessions.map((s) =>
-        s.id === activeSessionId
-          ? {
-              ...s,
-              branches: [...s.branches, newBranch],
-              activeBranchId: branchId,
-              updatedAt: now,
-            }
-          : s
-      ),
-      showBranchModal: false,
-    }));
+      await api.updateSession(activeSessionId, { active_branch_id: newBranch.branchId });
+
+      set((state) => ({
+        branches: [...state.branches, newBranch],
+        activeBranchId: newBranch.branchId,
+        showBranchModal: false,
+        sessions: state.sessions.map((s) =>
+          s.sessionId === activeSessionId
+            ? { ...s, activeBranchId: newBranch.branchId, branchCount: state.branches.length + 1 }
+            : s
+        ),
+      }));
+
+      await get().loadMessages(newBranch.branchId);
+    } catch (err) {
+      set({ errorMessage: (err as Error).message });
+    }
   },
 
-  setActiveBranch: (branchId) => {
-    set((state) => ({
-      sessions: state.sessions.map((s) =>
-        s.id === state.activeSessionId
-          ? { ...s, activeBranchId: branchId }
-          : s
-      ),
-    }));
+  setActiveBranch: async (branchId) => {
+    const { activeSessionId } = get();
+    set({ activeBranchId: branchId });
+
+    if (activeSessionId) {
+      try {
+        await api.updateSession(activeSessionId, { active_branch_id: branchId });
+        set((state) => ({
+          sessions: state.sessions.map((s) =>
+            s.sessionId === activeSessionId ? { ...s, activeBranchId: branchId } : s
+          ),
+        }));
+      } catch (err) {
+        set({ errorMessage: (err as Error).message });
+      }
+    }
+
+    await get().loadMessages(branchId);
   },
+
+  dismissError: () => set({ errorMessage: null }),
 }));
 
-// Selector hooks for derived state
+// ---------------------------------------------------------------------------
+// Selector hooks — same names as before so no component changes needed
+// ---------------------------------------------------------------------------
+
 export const useActiveSession = () =>
   useChatStore((state) =>
-    state.sessions.find((s) => s.id === state.activeSessionId) ?? null
+    state.sessions.find((s) => s.sessionId === state.activeSessionId) ?? null
   );
 
 export const useActiveBranch = () =>
-  useChatStore((state) => {
-    const session = state.sessions.find((s) => s.id === state.activeSessionId);
-    if (!session) return null;
-    return session.branches.find((b) => b.id === session.activeBranchId) ?? null;
-  });
-
-export const useActiveMessages = () =>
-  useChatStore(
-    useShallow((state) => {
-      const session = state.sessions.find((s) => s.id === state.activeSessionId);
-      if (!session) return [] as Message[];
-      const branch = session.branches.find(
-        (b) => b.id === session.activeBranchId
-      );
-      if (!branch) return [] as Message[];
-      const ids = new Set(branch.messageIds);
-      return session.messages
-        .filter((m) => ids.has(m.id))
-        .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
-    })
+  useChatStore((state) =>
+    state.branches.find((b) => b.branchId === state.activeBranchId) ?? null
   );
+
+// Messages are already filtered by branch from the API — no client-side filtering needed
+export const useActiveMessages = () =>
+  useChatStore(useShallow((state) => state.messages));

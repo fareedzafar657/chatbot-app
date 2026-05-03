@@ -13,12 +13,14 @@ export function BranchModal() {
   const toggleBranchModal = useChatStore((state) => state.toggleBranchModal);
   const forkBranch = useChatStore((state) => state.forkBranch);
   const setActiveBranch = useChatStore((state) => state.setActiveBranch);
+  const branches = useChatStore((state) => state.branches);
+  const activeBranchId = useChatStore((state) => state.activeBranchId);
   const activeSession = useActiveSession();
   const activeMessages = useActiveMessages();
   const activeBranch = useActiveBranch();
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(
-    new Set(activeMessages.map((m) => m.id))
+    new Set(activeMessages.map((m) => m.msgId))
   );
   const [forkName, setForkName] = useState('');
   const [showNameInput, setShowNameInput] = useState(false);
@@ -37,12 +39,11 @@ export function BranchModal() {
   const handleFork = () => {
     if (!showNameInput) {
       setShowNameInput(true);
-      setForkName(`branch-${activeSession.branches.length + 1}`);
+      setForkName(`branch-${branches.length + 1}`);
       return;
     }
-    const name =
-      forkName.trim() || `branch-${activeSession.branches.length + 1}`;
-    forkBranch(name, Array.from(selectedIds));
+    const label = forkName.trim() || `branch-${branches.length + 1}`;
+    forkBranch(Array.from(selectedIds), label);
   };
 
   const handleSwitchBranch = (branchId: string) => {
@@ -51,7 +52,7 @@ export function BranchModal() {
   };
 
   const selectedCount = selectedIds.size;
-  const currentBranchName = activeBranch?.name ?? 'main';
+  const currentBranchLabel = activeBranch?.label ?? 'main';
 
   return (
     <div
@@ -72,17 +73,12 @@ export function BranchModal() {
               <GitBranch className="w-3.5 h-3.5 text-violet-600" />
             </div>
             <div>
-              <h2 className="text-[15px] font-semibold text-gray-900">
-                Branch Manager
-              </h2>
+              <h2 className="text-[15px] font-semibold text-gray-900">Branch Manager</h2>
               <p className="text-[12px] text-gray-400">
                 Current:{' '}
-                <span className="text-violet-600 font-medium">
-                  {currentBranchName}
-                </span>
+                <span className="text-violet-600 font-medium">{currentBranchLabel}</span>
                 {' · '}
-                {activeSession.branches.length} branch
-                {activeSession.branches.length !== 1 ? 'es' : ''}
+                {branches.length} branch{branches.length !== 1 ? 'es' : ''}
               </p>
             </div>
           </div>
@@ -103,13 +99,9 @@ export function BranchModal() {
                 Messages
               </span>
               <div className="flex items-center gap-2">
-                <span className="text-[11px] text-gray-400">
-                  {selectedCount} selected
-                </span>
+                <span className="text-[11px] text-gray-400">{selectedCount} selected</span>
                 <button
-                  onClick={() =>
-                    setSelectedIds(new Set(activeMessages.map((m) => m.id)))
-                  }
+                  onClick={() => setSelectedIds(new Set(activeMessages.map((m) => m.msgId)))}
                   className="text-[11px] text-violet-500 hover:text-violet-700 font-medium"
                 >
                   All
@@ -132,13 +124,13 @@ export function BranchModal() {
                 </div>
               ) : (
                 activeMessages.map((msg, i) => {
-                  const isSelected = selectedIds.has(msg.id);
+                  const isSelected = selectedIds.has(msg.msgId);
                   const isUser = msg.role === 'user';
 
                   return (
                     <button
-                      key={msg.id}
-                      onClick={() => toggleMessage(msg.id)}
+                      key={msg.msgId}
+                      onClick={() => toggleMessage(msg.msgId)}
                       className={`w-full text-left flex items-start gap-2.5 p-2.5 rounded-lg transition-all duration-100 group ${
                         isSelected
                           ? 'bg-violet-50 border border-violet-200'
@@ -153,9 +145,7 @@ export function BranchModal() {
                             : 'bg-white border-gray-300 group-hover:border-gray-400'
                         }`}
                       >
-                        {isSelected && (
-                          <Check className="w-2.5 h-2.5 text-white" />
-                        )}
+                        {isSelected && <Check className="w-2.5 h-2.5 text-white" />}
                       </div>
 
                       {/* Avatar */}
@@ -232,8 +222,7 @@ export function BranchModal() {
                   }`}
                 >
                   <GitBranch className="w-3.5 h-3.5" />
-                  Fork Branch ({selectedCount} msg
-                  {selectedCount !== 1 ? 's' : ''})
+                  Fork Branch ({selectedCount} msg{selectedCount !== 1 ? 's' : ''})
                 </button>
               )}
             </div>
@@ -242,8 +231,8 @@ export function BranchModal() {
           {/* Right: Branch tree */}
           <div className="flex-1 p-4 overflow-hidden">
             <BranchTree
-              branches={activeSession.branches}
-              activeBranchId={activeSession.activeBranchId}
+              branches={branches}
+              activeBranchId={activeBranchId ?? ''}
               onSwitchBranch={handleSwitchBranch}
             />
           </div>

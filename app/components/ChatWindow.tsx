@@ -9,12 +9,15 @@ export function ChatWindow() {
   const toggleBranchModal = useChatStore((state) => state.toggleBranchModal);
   const isStreaming = useChatStore((state) => state.isStreaming);
   const streamingMessageId = useChatStore((state) => state.streamingMessageId);
+  const isLoadingMessages = useChatStore((state) => state.isLoadingMessages);
+  const hasMoreMessages = useChatStore((state) => state.hasMoreMessages);
+  const loadMoreMessages = useChatStore((state) => state.loadMoreMessages);
+  const branchCount = useChatStore((state) => state.branches.length);
   const activeSession = useActiveSession();
   const activeBranch = useActiveBranch();
   const activeMessages = useActiveMessages();
 
   const title = activeSession?.title ?? 'New Conversation';
-  const branchCount = activeSession?.branches.length ?? 0;
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-white">
@@ -31,13 +34,11 @@ export function ChatWindow() {
             {activeBranch && (
               <div className="flex items-center gap-1.5">
                 <GitBranch className="w-3 h-3 text-gray-400" />
-                <span className="text-[11px] text-gray-400">{activeBranch.name}</span>
+                <span className="text-[11px] text-gray-400">{activeBranch.label}</span>
                 {branchCount > 1 && (
                   <>
                     <span className="text-gray-300">·</span>
-                    <span className="text-[11px] text-violet-500">
-                      {branchCount} branches
-                    </span>
+                    <span className="text-[11px] text-violet-500">{branchCount} branches</span>
                   </>
                 )}
               </div>
@@ -69,7 +70,13 @@ export function ChatWindow() {
       </div>
 
       {/* Messages / Empty state */}
-      <MessageList messages={activeMessages} streamingMessageId={streamingMessageId} />
+      <MessageList
+        messages={activeMessages}
+        streamingMessageId={streamingMessageId}
+        hasMoreMessages={hasMoreMessages}
+        isLoadingMessages={isLoadingMessages}
+        onLoadMore={loadMoreMessages}
+      />
 
       {/* Input */}
       <MessageInput />

@@ -4,8 +4,8 @@ import { Sparkles } from 'lucide-react';
 import { Message } from '@/lib/types';
 import { MarkdownRenderer } from './MarkdownRenderer';
 
-function formatTime(date: Date): string {
-  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+function formatTime(dateStr: string): string {
+  return new Date(dateStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
 interface MessageBubbleProps {
@@ -24,7 +24,7 @@ export function MessageBubble({ message, isStreaming = false }: MessageBubblePro
             {message.content}
           </div>
           <div className="text-[11px] text-gray-400 mt-1.5 text-right opacity-0 group-hover:opacity-100 transition-opacity">
-            {formatTime(message.timestamp)}
+            {formatTime(message.createdAt)}
           </div>
         </div>
       </div>
@@ -60,7 +60,7 @@ export function MessageBubble({ message, isStreaming = false }: MessageBubblePro
           )}
         </div>
         <div className="text-[11px] text-gray-400 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
-          {formatTime(message.timestamp)}
+          {formatTime(message.createdAt)}
         </div>
       </div>
     </div>

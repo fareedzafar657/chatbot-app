@@ -11,12 +11,10 @@ const V_GAP = 88;
 
 function buildChildren(branches: Branch[]): Record<string, string[]> {
   const map: Record<string, string[]> = {};
-  branches.forEach((b) => {
-    map[b.id] = [];
-  });
+  branches.forEach((b) => { map[b.branchId] = []; });
   branches.forEach((b) => {
     if (b.parentBranchId && map[b.parentBranchId]) {
-      map[b.parentBranchId].push(b.id);
+      map[b.parentBranchId].push(b.branchId);
     }
   });
   return map;
@@ -48,15 +46,13 @@ function assignPositions(
   });
 }
 
-function layoutBranches(
-  branches: Branch[]
-): Record<string, { x: number; y: number }> {
+function layoutBranches(branches: Branch[]): Record<string, { x: number; y: number }> {
   if (branches.length === 0) return {};
   const children = buildChildren(branches);
   const root = branches.find((b) => !b.parentBranchId);
   if (!root) return {};
   const positions: Record<string, { x: number; y: number }> = {};
-  assignPositions(root.id, 0, 0, children, positions);
+  assignPositions(root.branchId, 0, 0, children, positions);
   return positions;
 }
 
@@ -66,11 +62,7 @@ interface BranchTreeProps {
   onSwitchBranch: (id: string) => void;
 }
 
-export function BranchTree({
-  branches,
-  activeBranchId,
-  onSwitchBranch,
-}: BranchTreeProps) {
+export function BranchTree({ branches, activeBranchId, onSwitchBranch }: BranchTreeProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [transform, setTransform] = useState({ x: 40, y: 40, scale: 1 });
   const dragging = useRef(false);
@@ -78,12 +70,6 @@ export function BranchTree({
 
   const positions = layoutBranches(branches);
   const children = buildChildren(branches);
-
-  const allPos = Object.values(positions);
-  const contentW =
-    allPos.length > 0 ? Math.max(...allPos.map((p) => p.x)) + NODE_W + 80 : 400;
-  const contentH =
-    allPos.length > 0 ? Math.max(...allPos.map((p) => p.y)) + NODE_H + 80 : 300;
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault();
@@ -106,20 +92,16 @@ export function BranchTree({
     setTransform((prev) => ({ ...prev, x: prev.x + dx, y: prev.y + dy }));
   };
 
-  const handleMouseUp = () => {
-    dragging.current = false;
-  };
+  const handleMouseUp = () => { dragging.current = false; };
 
-  const fitView = () => {
-    setTransform({ x: 40, y: 40, scale: 1 });
-  };
+  const fitView = () => setTransform({ x: 40, y: 40, scale: 1 });
 
   // Draw edges
   const edges: React.ReactNode[] = [];
   branches.forEach((branch) => {
     if (!branch.parentBranchId) return;
     const from = positions[branch.parentBranchId];
-    const to = positions[branch.id];
+    const to = positions[branch.branchId];
     if (!from || !to) return;
 
     const x1 = from.x + NODE_W / 2;
@@ -130,14 +112,13 @@ export function BranchTree({
 
     edges.push(
       <path
-        key={`edge-${branch.id}`}
+        key={`edge-${branch.branchId}`}
         d={`M ${x1} ${y1} C ${x1} ${midY}, ${x2} ${midY}, ${x2} ${y2}`}
         fill="none"
         stroke="#D1D5DB"
         strokeWidth={1.5}
         strokeDasharray={
-          branch.id === activeBranchId ||
-          branch.parentBranchId === activeBranchId
+          branch.branchId === activeBranchId || branch.parentBranchId === activeBranchId
             ? 'none'
             : '4 3'
         }
@@ -147,16 +128,17 @@ export function BranchTree({
 
   // Draw nodes
   const nodes: React.ReactNode[] = branches.map((branch) => {
-    const pos = positions[branch.id];
+    const pos = positions[branch.branchId];
     if (!pos) return null;
-    const isActive = branch.id === activeBranchId;
-    const kidCount = (children[branch.id] ?? []).length;
+    const isActive = branch.branchId === activeBranchId;
+    const kidCount = (children[branch.branchId] ?? []).length;
+    const msgCount = branch.selectedMsgIds.length;
 
     return (
       <g
-        key={branch.id}
+        key={branch.branchId}
         transform={`translate(${pos.x}, ${pos.y})`}
-        onClick={() => onSwitchBranch(branch.id)}
+        onClick={() => onSwitchBranch(branch.branchId)}
         style={{ cursor: 'pointer' }}
       >
         <rect
@@ -175,25 +157,13 @@ export function BranchTree({
 
         {/* Branch icon */}
         <g transform={`translate(12, ${NODE_H / 2 - 7})`}>
-          <rect
-            width={14}
-            height={14}
-            rx={3}
-            fill={isActive ? 'rgba(255,255,255,0.2)' : '#F3F4F6'}
-          />
-          <text
-            x={7}
-            y={10}
-            textAnchor="middle"
-            fontSize={8}
-            fill={isActive ? 'white' : '#6B7280'}
-            fontFamily="monospace"
-          >
+          <rect width={14} height={14} rx={3} fill={isActive ? 'rgba(255,255,255,0.2)' : '#F3F4F6'} />
+          <text x={7} y={10} textAnchor="middle" fontSize={8} fill={isActive ? 'white' : '#6B7280'} fontFamily="monospace">
             ⎇
           </text>
         </g>
 
-        {/* Branch name */}
+        {/* Branch label */}
         <text
           x={34}
           y={NODE_H / 2 - 4}
@@ -202,7 +172,7 @@ export function BranchTree({
           fill={isActive ? 'white' : '#111827'}
           fontFamily="Inter, sans-serif"
         >
-          {branch.name.length > 14 ? branch.name.slice(0, 13) + '…' : branch.name}
+          {branch.label.length > 14 ? branch.label.slice(0, 13) + '…' : branch.label}
         </text>
 
         {/* Message count */}
@@ -213,8 +183,7 @@ export function BranchTree({
           fill={isActive ? 'rgba(255,255,255,0.7)' : '#9CA3AF'}
           fontFamily="Inter, sans-serif"
         >
-          {branch.messageIds.length} message
-          {branch.messageIds.length !== 1 ? 's' : ''}
+          {msgCount} message{msgCount !== 1 ? 's' : ''}
           {kidCount > 0 ? ` · ${kidCount} fork${kidCount > 1 ? 's' : ''}` : ''}
         </text>
 
@@ -229,10 +198,6 @@ export function BranchTree({
     );
   });
 
-  // suppress unused vars warning
-  void contentW;
-  void contentH;
-
   return (
     <div className="relative flex flex-col h-full bg-[#FAFAFA] rounded-xl border border-gray-100 overflow-hidden">
       {/* Header */}
@@ -245,35 +210,25 @@ export function BranchTree({
         </div>
         <div className="flex items-center gap-1">
           <button
-            onClick={() =>
-              setTransform((p) => ({ ...p, scale: Math.min(2, p.scale + 0.15) }))
-            }
+            onClick={() => setTransform((p) => ({ ...p, scale: Math.min(2, p.scale + 0.15) }))}
             className="p-1.5 rounded-md hover:bg-gray-100 text-gray-500 transition-colors"
           >
             <ZoomIn className="w-3.5 h-3.5" />
           </button>
           <button
-            onClick={() =>
-              setTransform((p) => ({ ...p, scale: Math.max(0.4, p.scale - 0.15) }))
-            }
+            onClick={() => setTransform((p) => ({ ...p, scale: Math.max(0.4, p.scale - 0.15) }))}
             className="p-1.5 rounded-md hover:bg-gray-100 text-gray-500 transition-colors"
           >
             <ZoomOut className="w-3.5 h-3.5" />
           </button>
-          <button
-            onClick={fitView}
-            className="p-1.5 rounded-md hover:bg-gray-100 text-gray-500 transition-colors"
-          >
+          <button onClick={fitView} className="p-1.5 rounded-md hover:bg-gray-100 text-gray-500 transition-colors">
             <Maximize2 className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
 
       {/* SVG canvas */}
-      <div
-        className="flex-1 overflow-hidden"
-        style={{ cursor: dragging.current ? 'grabbing' : 'grab' }}
-      >
+      <div className="flex-1 overflow-hidden" style={{ cursor: dragging.current ? 'grabbing' : 'grab' }}>
         <svg
           ref={svgRef}
           width="100%"
@@ -286,19 +241,11 @@ export function BranchTree({
         >
           <defs>
             <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
-              <path
-                d="M 20 0 L 0 0 0 20"
-                fill="none"
-                stroke="#F0F0F4"
-                strokeWidth="0.5"
-              />
+              <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#F0F0F4" strokeWidth="0.5" />
             </pattern>
           </defs>
           <rect width="100%" height="100%" fill="url(#grid)" />
-
-          <g
-            transform={`translate(${transform.x}, ${transform.y}) scale(${transform.scale})`}
-          >
+          <g transform={`translate(${transform.x}, ${transform.y}) scale(${transform.scale})`}>
             {edges}
             {nodes}
           </g>

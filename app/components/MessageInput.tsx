@@ -13,6 +13,7 @@ export function MessageInput() {
 
   const [value, setValue] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const activeSessionId = useChatStore((state) => state.activeSessionId);
 
   // Auto-resize textarea
   useEffect(() => {
@@ -24,7 +25,7 @@ export function MessageInput() {
 
   const handleSend = () => {
     const trimmed = value.trim();
-    if (!trimmed || isStreaming) return;
+    if (!trimmed || isStreaming || !activeSessionId) return;
     sendMessage(trimmed);
     setValue('');
     if (textareaRef.current) {
