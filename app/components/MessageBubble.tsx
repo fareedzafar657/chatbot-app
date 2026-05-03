@@ -1,6 +1,7 @@
 'use client';
 
-import { Sparkles } from 'lucide-react';
+import { useState } from 'react';
+import { Sparkles, Copy, Check } from 'lucide-react';
 import { Message } from '@/lib/types';
 import { MarkdownRenderer } from './MarkdownRenderer';
 
@@ -15,6 +16,17 @@ interface MessageBubbleProps {
 
 export function MessageBubble({ message, isStreaming = false }: MessageBubbleProps) {
   const isUser = message.role === 'user';
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(message.content);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Ignore copy errors
+    }
+  };
 
   if (isUser) {
     return (
@@ -59,8 +71,21 @@ export function MessageBubble({ message, isStreaming = false }: MessageBubblePro
             )
           )}
         </div>
-        <div className="text-[11px] text-gray-400 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
-          {formatTime(message.createdAt)}
+        <div className="flex items-center gap-3 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          <span className="text-[11px] text-gray-400">{formatTime(message.createdAt)}</span>
+          {!isStreaming && message.content && (
+            <button
+              onClick={handleCopy}
+              title="Copy message"
+              className="text-gray-400 hover:text-gray-600 transition-colors p-0.5"
+            >
+              {copied ? (
+                <Check className="w-3.5 h-3.5 text-green-500" />
+              ) : (
+                <Copy className="w-3.5 h-3.5" />
+              )}
+            </button>
+          )}
         </div>
       </div>
     </div>

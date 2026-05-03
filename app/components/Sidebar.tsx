@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, Trash2, Sparkles, LogOut, MessageSquare, Settings } from 'lucide-react';
 import { useChatStore } from '@/lib/store';
@@ -27,10 +27,66 @@ interface SessionItemProps {
   isActive: boolean;
   onSelect: () => void;
   onDelete: () => void;
+  onRename: (title: string) => void;
 }
 
-function SessionItem({ session, isActive, onSelect, onDelete }: SessionItemProps) {
+function SessionItem({ session, isActive, onSelect, onDelete, onRename }: SessionItemProps) {
   const [hovered, setHovered] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState(session.title ?? 'New Conversation');
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [isEditing]);
+
+  const handleSaveRename = () => {
+    const trimmed = editTitle.trim();
+    if (trimmed) {
+      onRename(trimmed);
+    }
+    setIsEditing(false);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleSaveRename();
+    } else if (e.key === 'Escape') {
+      setIsEditing(false);
+      setEditTitle(session.title ?? 'New Conversation');
+    }
+  };
+
+  if (isEditing) {
+    return (
+      <div
+        className={`w-full px-3 py-2.5 rounded-lg flex items-center gap-2.5 ${
+          isActive ? 'bg-gray-100' : 'bg-gray-50'
+        }`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <MessageSquare
+          className={`w-3.5 h-3.5 flex-shrink-0 ${
+            isActive ? 'text-gray-700' : 'text-gray-400'
+          }`}
+        />
+        <input
+          ref={inputRef}
+          type="text"
+          value={editTitle}
+          onChange={(e) => setEditTitle(e.target.value)}
+          onBlur={handleSaveRename}
+          onKeyDown={handleKeyDown}
+          className="flex-1 text-[13px] font-medium bg-transparent outline-none border-b border-gray-300 focus:border-violet-500 text-gray-900 placeholder-gray-400"
+          placeholder="Session name..."
+        />
+      </div>
+    );
+  }
 
   return (
     <button
@@ -51,7 +107,11 @@ function SessionItem({ session, isActive, onSelect, onDelete }: SessionItemProps
       <div className="flex-1 min-w-0">
         <div className="flex items-start justify-between gap-1">
           <span
-            className={`text-[13px] font-medium truncate leading-snug ${
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsEditing(true);
+            }}
+            className={`text-[13px] font-medium truncate leading-snug cursor-text hover:underline ${
               isActive ? 'text-gray-900' : 'text-gray-700'
             }`}
           >
@@ -94,6 +154,7 @@ export function Sidebar() {
   const setActiveSession = useChatStore((state) => state.setActiveSession);
   const newSession = useChatStore((state) => state.newSession);
   const deleteSession = useChatStore((state) => state.deleteSession);
+  const renameSession = useChatStore((state) => state.renameSession);
   const initSessions = useChatStore((state) => state.initSessions);
   const isLoadingSessions = useChatStore((state) => state.isLoadingSessions);
   const hasMoreSessions = useChatStore((state) => state.hasMoreSessions);
@@ -142,6 +203,7 @@ export function Sidebar() {
               isActive={s.sessionId === activeSessionId}
               onSelect={() => setActiveSession(s.sessionId)}
               onDelete={() => deleteSession(s.sessionId)}
+              onRename={(title) => renameSession(s.sessionId, title)}
             />
           ))}
         </div>

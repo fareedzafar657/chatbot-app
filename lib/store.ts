@@ -39,6 +39,7 @@ interface ChatActions {
   loadBranches(sessionId: string): Promise<void>;
   newSession(): void;
   deleteSession(sessionId: string): void;
+  renameSession(sessionId: string, title: string): Promise<void>;
   sendMessage(prompt: string): void;
   stopStreaming(): void;
   setStreaming(streaming: boolean): void;
@@ -81,10 +82,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         isLoadingSessions: false,
       });
       const { activeSessionId } = get();
-      if (!activeSessionId && result.items.length > 0) {
-        get().setActiveSession(result.items[0].sessionId);
-      } else if (!activeSessionId && result.items.length === 0) {
-        // No existing sessions — create a temp session so user can start typing
+      if (!activeSessionId) {
+        // Always start with a new session, regardless of existing sessions
         get().newSession();
       }
     } catch (err) {
@@ -215,6 +214,20 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
     try {
       await api.deleteSession(sessionId);
+    } catch (err) {
+      set({ errorMessage: (err as Error).message });
+    }
+  },
+
+  renameSession: async (sessionId, title) => {
+    set((state) => ({
+      sessions: state.sessions.map((s) =>
+        s.sessionId === sessionId ? { ...s, title } : s
+      ),
+    }));
+
+    try {
+      await api.updateSession(sessionId, { title });
     } catch (err) {
       set({ errorMessage: (err as Error).message });
     }
