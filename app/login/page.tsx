@@ -364,17 +364,29 @@ export default function LoginPage() {
 
               {/* Toggle mode */}
               <p className="text-center text-[13px] text-gray-500 mt-6">
-                {mode === 'signin' ? "Don't have an account?" : 'Already have an account?'}{' '}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMode((m) => (m === 'signin' ? 'signup' : 'signin'));
-                    setError('');
-                  }}
-                  className="text-violet-600 hover:text-violet-700 font-medium"
-                >
-                  {mode === 'signin' ? 'Sign up for free' : 'Sign in'}
-                </button>
+                {mode === 'signin' ? (
+                  <>
+                    Don&apos;t have an account?{' '}
+                    <button
+                      type="button"
+                      onClick={() => setError('This app is private — registration is not open to the public.')}
+                      className="text-violet-600 hover:text-violet-700 font-medium"
+                    >
+                      Sign up
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    Already have an account?{' '}
+                    <button
+                      type="button"
+                      onClick={() => { setMode('signin'); setError(''); }}
+                      className="text-violet-600 hover:text-violet-700 font-medium"
+                    >
+                      Sign in
+                    </button>
+                  </>
+                )}
               </p>
 
               {/* Terms */}

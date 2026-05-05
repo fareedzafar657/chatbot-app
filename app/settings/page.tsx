@@ -3,20 +3,18 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  ArrowLeft, Settings, Shield, CreditCard, BarChart2, Sparkles,
+  ArrowLeft, Settings, Shield, BarChart2, Sparkles,
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/authStore';
 import { GeneralTab } from '@/app/components/settings/GeneralTab';
 import { SecurityTab } from '@/app/components/settings/SecurityTab';
-import { SpendingTab } from '@/app/components/settings/SpendingTab';
 import { UsageTab } from '@/app/components/settings/UsageTab';
 
-type Tab = 'general' | 'security' | 'spending' | 'usage';
+type Tab = 'general' | 'security' | 'usage';
 
 const TABS: { id: Tab; label: string; icon: React.ElementType; description: string }[] = [
   { id: 'general', label: 'General', icon: Settings, description: 'Profile & preferences' },
   { id: 'security', label: 'Security', icon: Shield, description: 'Password & sessions' },
-  { id: 'spending', label: 'Spending', icon: CreditCard, description: 'Billing & plan' },
   { id: 'usage', label: 'Usage', icon: BarChart2, description: 'Analytics & limits' },
 ];
 
@@ -34,7 +32,6 @@ export default function SettingsPage() {
   const ActiveComponent = {
     general: GeneralTab,
     security: SecurityTab,
-    spending: SpendingTab,
     usage: UsageTab,
   }[activeTab];
 

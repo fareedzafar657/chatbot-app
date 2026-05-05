@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Check, Camera } from 'lucide-react';
+import { Check, Camera, Loader2 } from 'lucide-react';
 import { useAuthStore } from '@/lib/authStore';
 
 function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
@@ -71,17 +71,26 @@ function Section({
 
 export function GeneralTab() {
   const user = useAuthStore((state) => state.user);
-  const [name, setName] = useState(user?.name ?? 'John Doe');
-  const [bio, setBio] = useState('Software engineer passionate about AI and developer tools.');
+  const updateName = useAuthStore((state) => state.updateName);
+  const [name, setName] = useState(user?.name ?? '');
+  const [bio, setBio] = useState('');
   const [language, setLanguage] = useState('English (US)');
-  const [model, setModel] = useState('GPT-4o');
-  const [streaming, setStreaming] = useState(true);
-  const [codeHighlight, setCodeHighlight] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
-  const handleSave = () => {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+  const handleSave = async () => {
+    setSaving(true);
+    setSaveError(null);
+    try {
+      await updateName(name.trim() || (user?.name ?? ''));
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Failed to save. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -113,7 +122,7 @@ export function GeneralTab() {
               <div className="flex items-center gap-2">
                 <input
                   type="email"
-                  value={user?.email ?? 'john@example.com'}
+                  value={user?.email ?? ''}
                   readOnly
                   className="flex-1 px-3 py-2 text-[13px] border border-gray-200 rounded-lg bg-gray-50 text-gray-500 outline-none cursor-not-allowed"
                 />
@@ -170,75 +179,21 @@ export function GeneralTab() {
         </div>
       </Section>
 
-      <Section title="AI Preferences" description="Customize how the AI responds to you.">
-        <div className="space-y-4">
-          <div>
-            <label className="block text-[12px] font-medium text-gray-600 mb-1.5">
-              Default Model
-            </label>
-            <Select
-              value={model}
-              onChange={setModel}
-              options={[
-                'GPT-4o',
-                'GPT-4o mini',
-                'Claude 3.5 Sonnet',
-                'Claude 3 Haiku',
-                'Gemini 1.5 Pro',
-              ]}
-            />
-          </div>
-          <div>
-            <label className="block text-[12px] font-medium text-gray-600 mb-1.5">
-              Response Style
-            </label>
-            <div className="flex gap-2">
-              {['Concise', 'Balanced', 'Detailed'].map((style) => (
-                <button
-                  key={style}
-                  className={`px-3.5 py-1.5 rounded-lg text-[13px] border transition-all ${
-                    style === 'Balanced'
-                      ? 'border-violet-400 bg-violet-50 text-violet-700 font-medium'
-                      : 'border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50'
-                  }`}
-                >
-                  {style}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between py-1">
-              <div>
-                <div className="text-[13px] font-medium text-gray-800">Streaming responses</div>
-                <div className="text-[12px] text-gray-500">
-                  Show AI responses as they&apos;re generated
-                </div>
-              </div>
-              <Toggle checked={streaming} onChange={setStreaming} />
-            </div>
-            <div className="flex items-center justify-between py-1">
-              <div>
-                <div className="text-[13px] font-medium text-gray-800">Syntax highlighting</div>
-                <div className="text-[12px] text-gray-500">Highlight code blocks in responses</div>
-              </div>
-              <Toggle checked={codeHighlight} onChange={setCodeHighlight} />
-            </div>
-          </div>
-        </div>
-      </Section>
-
-      <div className="pt-6">
+      <div className="pt-6 space-y-2">
+        {saveError && (
+          <p className="text-[12px] text-red-600">{saveError}</p>
+        )}
         <button
           onClick={handleSave}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[13px] font-medium transition-all ${
+          disabled={saving}
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[13px] font-medium transition-all disabled:opacity-60 ${
             saved ? 'bg-emerald-600 text-white' : 'bg-[#18181B] hover:bg-black text-white shadow-sm'
           }`}
         >
-          {saved ? (
-            <>
-              <Check className="w-4 h-4" /> Saved!
-            </>
+          {saving ? (
+            <><Loader2 className="w-4 h-4 animate-spin" /> Saving…</>
+          ) : saved ? (
+            <><Check className="w-4 h-4" /> Saved!</>
           ) : (
             'Save changes'
           )}

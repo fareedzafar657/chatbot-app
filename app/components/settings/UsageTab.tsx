@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   BarChart,
   Bar,
@@ -10,47 +10,54 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
-import { MessageSquare, Zap, Activity, Download } from 'lucide-react';
+import { MessageSquare, Zap, DollarSign, Activity, Download, Loader2 } from 'lucide-react';
+import { api } from '@/lib/api';
+import type { UsageStats, DailyUsage } from '@/lib/types';
 
-const DAILY_DATA = (() => {
-  const values = [
-    12, 28, 19, 34, 45, 38, 22, 15, 41, 53, 47, 29, 18, 36, 44, 31, 27, 55, 48, 33, 20, 14, 39,
-    52, 41, 26, 17, 43, 51, 37,
-  ];
-  const now = new Date('2026-05-03');
-  return values.map((messages, i) => {
-    const date = new Date(now.getTime() - (29 - i) * 86400000);
-    return {
-      date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-      messages,
-      tokens: messages * 820 + Math.floor(Math.random() * 2000),
-    };
-  });
-})();
-
-const MODEL_DATA = [
-  { model: 'GPT-4o', messages: 812, tokens: '620K', percent: 65, color: '#6366F1' },
-  { model: 'Claude 3.5 Sonnet', messages: 312, tokens: '198K', percent: 25, color: '#8B5CF6' },
-  { model: 'GPT-4o mini', messages: 98, tokens: '62K', percent: 8, color: '#A78BFA' },
-  { model: 'GPT-3.5 Turbo', messages: 25, tokens: '12K', percent: 2, color: '#C4B5FD' },
-];
-
-const totalMessages = DAILY_DATA.reduce((s, d) => s + d.messages, 0);
-const totalTokens = DAILY_DATA.reduce((s, d) => s + d.tokens, 0);
-
+const MODEL_COLORS = ['#6366F1', '#8B5CF6', '#A78BFA', '#C4B5FD'];
 const PERIODS = ['Last 7 days', 'Last 30 days', 'Last 3 months'];
+
+function formatTokens(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+  return String(n);
+}
+
+function formatModelId(modelId: string): string {
+  const map: Record<string, string> = {
+    'amazon.nova-micro-v1:0': 'Amazon Nova Micro',
+    'amazon.nova-lite-v1:0': 'Amazon Nova Lite',
+    'amazon.nova-pro-v1:0': 'Amazon Nova Pro',
+    'anthropic.claude-3-sonnet-20240229-v1:0': 'Claude 3 Sonnet',
+    'anthropic.claude-3-haiku-20240307-v1:0': 'Claude 3 Haiku',
+  };
+  return map[modelId] ?? modelId;
+}
+
+function formatDate(dateStr: string): string {
+  const d = new Date(dateStr + 'T00:00:00');
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function filterByPeriod(data: DailyUsage[], period: string): DailyUsage[] {
+  const days = period === 'Last 7 days' ? 7 : period === 'Last 30 days' ? 30 : 90;
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - days);
+  const cutoffStr = cutoff.toISOString().slice(0, 10);
+  return data.filter((d) => d.date >= cutoffStr);
+}
 
 function StatCard({
   icon: Icon,
   label,
   value,
-  delta,
+  sub,
   color,
 }: {
   icon: React.ElementType;
   label: string;
   value: string;
-  delta: string;
+  sub: string;
   color: string;
 }) {
   return (
@@ -63,9 +70,7 @@ function StatCard({
       </div>
       <div className="text-[22px] font-bold text-gray-900 mb-0.5">{value}</div>
       <div className="text-[12px] text-gray-500 mb-1">{label}</div>
-      <div className="text-[11px] font-medium" style={{ color }}>
-        {delta}
-      </div>
+      <div className="text-[11px] font-medium text-gray-400">{sub}</div>
     </div>
   );
 }
@@ -83,15 +88,44 @@ function CustomTooltip({ active, payload, label }: { active?: boolean; payload?:
 
 export function UsageTab() {
   const [period, setPeriod] = useState('Last 30 days');
+  const [stats, setStats] = useState<UsageStats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const sliceCount = period === 'Last 7 days' ? 7 : period === 'Last 30 days' ? 30 : 90;
-  const displayData = DAILY_DATA.slice(-Math.min(sliceCount, DAILY_DATA.length));
-  const tickCount = displayData.length <= 7 ? displayData.length : 6;
+  useEffect(() => {
+    api.getUsageStats()
+      .then(setStats)
+      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load usage data.'))
+      .finally(() => setLoading(false));
+  }, []);
 
-  const displayedData = displayData.map((d, i) => ({
-    ...d,
-    displayDate: i % Math.floor(displayData.length / tickCount) === 0 ? d.date : '',
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+      </div>
+    );
+  }
+
+  if (error || !stats) {
+    return (
+      <div className="py-10 text-center text-[13px] text-gray-500">{error ?? 'No data available.'}</div>
+    );
+  }
+
+  const filtered = filterByPeriod(stats.dailyUsage, period);
+  const tickCount = filtered.length <= 7 ? filtered.length : 6;
+  const chartData = filtered.map((d, i) => ({
+    displayDate: i % Math.max(1, Math.floor(filtered.length / tickCount)) === 0 ? formatDate(d.date) : '',
+    messages: d.messageCount,
+    tokens: d.inputTokens + d.outputTokens,
   }));
+
+  const modelBreakdown = stats.modelBreakdown.length > 0
+    ? stats.modelBreakdown
+    : [{ modelId: 'amazon.nova-micro-v1:0', tokenCount: stats.totalTokens, percentage: 100 }];
+
+  const totalMsgs = filtered.reduce((s, d) => s + d.messageCount, 0);
 
   return (
     <div className="space-y-6">
@@ -99,22 +133,22 @@ export function UsageTab() {
         <StatCard
           icon={MessageSquare}
           label="Total messages"
-          value={totalMessages.toLocaleString()}
-          delta="↑ 12% vs last month"
+          value={stats.totalMessages.toLocaleString()}
+          sub="All time"
           color="#6366F1"
         />
         <StatCard
           icon={Zap}
           label="Tokens used"
-          value={`${(totalTokens / 1000).toFixed(0)}K`}
-          delta="↑ 8% vs last month"
+          value={formatTokens(stats.totalTokens)}
+          sub="Input + output"
           color="#8B5CF6"
         />
         <StatCard
-          icon={Activity}
-          label="Avg. per day"
-          value={Math.round(totalMessages / 30).toString()}
-          delta="↑ 4% vs last month"
+          icon={DollarSign}
+          label="Estimated cost"
+          value={`$${stats.estimatedCostUsd.toFixed(4)}`}
+          sub="All time"
           color="#06B6D4"
         />
       </div>
@@ -124,7 +158,7 @@ export function UsageTab() {
           <div>
             <h3 className="text-[13px] font-semibold text-gray-900">Daily Messages</h3>
             <p className="text-[12px] text-gray-500 mt-0.5">
-              {totalMessages.toLocaleString()} total over 30 days
+              {totalMsgs.toLocaleString()} total in selected period
             </p>
           </div>
           <div className="flex items-center gap-1 p-1 bg-gray-100 rounded-lg">
@@ -145,7 +179,7 @@ export function UsageTab() {
         </div>
         <ResponsiveContainer width="100%" height={180}>
           <BarChart
-            data={displayedData}
+            data={chartData}
             barSize={period === 'Last 7 days' ? 28 : 10}
             margin={{ top: 4, right: 4, left: -20, bottom: 0 }}
           >
@@ -180,38 +214,38 @@ export function UsageTab() {
         </div>
 
         <div className="flex h-2.5 rounded-full overflow-hidden mb-5 gap-0.5">
-          {MODEL_DATA.map((m) => (
+          {modelBreakdown.map((m, i) => (
             <div
-              key={m.model}
-              style={{ width: `${m.percent}%`, background: m.color }}
+              key={m.modelId}
+              style={{ width: `${m.percentage}%`, background: MODEL_COLORS[i % MODEL_COLORS.length] }}
               className="rounded-full"
             />
           ))}
         </div>
 
         <div className="space-y-3">
-          {MODEL_DATA.map((m) => (
-            <div key={m.model} className="flex items-center gap-3">
+          {modelBreakdown.map((m, i) => (
+            <div key={m.modelId} className="flex items-center gap-3">
               <div
                 className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                style={{ background: m.color }}
+                style={{ background: MODEL_COLORS[i % MODEL_COLORS.length] }}
               />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-[13px] text-gray-800 font-medium">{m.model}</span>
+                  <span className="text-[13px] text-gray-800 font-medium">{formatModelId(m.modelId)}</span>
                   <span className="text-[12px] text-gray-500">
-                    {m.messages.toLocaleString()} msgs · {m.tokens} tokens
+                    {formatTokens(m.tokenCount)} tokens
                   </span>
                 </div>
                 <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
                   <div
                     className="h-full rounded-full"
-                    style={{ width: `${m.percent}%`, background: m.color }}
+                    style={{ width: `${m.percentage}%`, background: MODEL_COLORS[i % MODEL_COLORS.length] }}
                   />
                 </div>
               </div>
               <span className="text-[12px] font-semibold text-gray-700 w-9 text-right flex-shrink-0">
-                {m.percent}%
+                {m.percentage}%
               </span>
             </div>
           ))}

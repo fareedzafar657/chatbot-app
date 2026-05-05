@@ -6,6 +6,7 @@ import type {
   PaginatedSessions,
   PaginatedMessages,
   ForkBranchRequest,
+  UsageStats,
 } from './types';
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL!;
@@ -104,4 +105,7 @@ export const api = {
     data: { state?: string; content?: string }
   ): Promise<Message> =>
     client.patch(`/messages/${msgId}`, data).then((r) => r.data),
+
+  getUsageStats: (): Promise<UsageStats> =>
+    client.get('/sessions/usage/stats').then((r) => r.data),
 };

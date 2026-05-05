@@ -51,3 +51,26 @@ export interface ForkBranchRequest {
   selected_msg_ids: string[];
   label?: string;
 }
+
+export interface DailyUsage {
+  date: string;
+  inputTokens: number;
+  outputTokens: number;
+  messageCount: number;
+}
+
+export interface ModelUsage {
+  modelId: string;
+  tokenCount: number;
+  percentage: number;
+}
+
+export interface UsageStats {
+  totalMessages: number;
+  totalInputTokens: number;
+  totalOutputTokens: number;
+  totalTokens: number;
+  estimatedCostUsd: number;
+  dailyUsage: DailyUsage[];
+  modelBreakdown: ModelUsage[];
+}

@@ -24,6 +24,7 @@ export function BranchModal() {
   );
   const [forkName, setForkName] = useState('');
   const [showNameInput, setShowNameInput] = useState(false);
+  const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null);
 
   if (!activeSession) return null;
 
@@ -46,9 +47,16 @@ export function BranchModal() {
     forkBranch(Array.from(selectedIds), label);
   };
 
-  const handleSwitchBranch = (branchId: string) => {
-    setActiveBranch(branchId);
-    toggleBranchModal(false);
+  const handleSelectBranch = (branchId: string) => {
+    setSelectedBranchId(branchId);
+  };
+
+  const handleConfirmSwitch = async () => {
+    if (selectedBranchId && selectedBranchId !== activeBranchId) {
+      await setActiveBranch(selectedBranchId);
+      toggleBranchModal(false);
+      setSelectedBranchId(null);
+    }
   };
 
   const selectedCount = selectedIds.size;
@@ -229,12 +237,32 @@ export function BranchModal() {
           </div>
 
           {/* Right: Branch tree */}
-          <div className="flex-1 p-4 overflow-hidden">
-            <BranchTree
-              branches={branches}
-              activeBranchId={activeBranchId ?? ''}
-              onSwitchBranch={handleSwitchBranch}
-            />
+          <div className="flex-1 flex flex-col overflow-hidden">
+            <div className="flex-1 p-4 overflow-hidden">
+              <BranchTree
+                branches={branches}
+                activeBranchId={selectedBranchId ?? activeBranchId ?? ''}
+                onSwitchBranch={handleSelectBranch}
+              />
+            </div>
+
+            {/* Confirm button */}
+            {selectedBranchId && selectedBranchId !== activeBranchId && (
+              <div className="flex-shrink-0 px-4 py-4 border-t border-gray-100 bg-gray-50 flex gap-2">
+                <button
+                  onClick={handleConfirmSwitch}
+                  className="flex-1 py-2.5 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-[13px] font-medium transition-all shadow-sm"
+                >
+                  Switch to Branch
+                </button>
+                <button
+                  onClick={() => setSelectedBranchId(null)}
+                  className="px-4 py-2.5 rounded-lg text-gray-600 hover:bg-gray-200 text-[13px] font-medium transition-all"
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -6,6 +6,7 @@ import {
   confirmSignUp as amplifyConfirmSignUp,
   fetchAuthSession,
   getCurrentUser,
+  updateUserAttributes,
 } from 'aws-amplify/auth';
 
 export interface AuthUser {
@@ -28,14 +29,20 @@ interface AuthActions {
   confirmSignUp(email: string, code: string): Promise<void>;
   getAccessToken(): Promise<string>;
   restoreSession(): Promise<void>;
+  updateName(name: string): Promise<void>;
 }
 
-function deriveUser(email: string, token: string): AuthUser {
-  const namePart = email.split('@')[0];
-  const name = namePart
-    .split(/[._-]/)
-    .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
-    .join(' ');
+function deriveUser(email: string, token: string, cognitoName?: string): AuthUser {
+  let name: string;
+  if (cognitoName?.trim()) {
+    name = cognitoName.trim();
+  } else {
+    const namePart = email.split('@')[0];
+    name = namePart
+      .split(/[._-]/)
+      .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
+      .join(' ');
+  }
   const initials = name
     .split(' ')
     .map((n) => n[0])
@@ -56,7 +63,8 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
       const session = await fetchAuthSession();
       const token = session.tokens?.accessToken?.toString();
       if (!token) throw new Error('Authentication succeeded but no access token was returned.');
-      set({ user: deriveUser(email, token), isLoading: false });
+      const cognitoName = session.tokens?.idToken?.payload?.name as string | undefined;
+      set({ user: deriveUser(email, token, cognitoName), isLoading: false });
     } catch (err) {
       set({ isLoading: false });
       throw err;
@@ -108,11 +116,25 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
       const session = await fetchAuthSession();
       const token = session.tokens?.accessToken?.toString();
       if (!token) throw new Error('No token');
-      const email =
-        (session.tokens?.idToken?.payload?.email as string | undefined) ?? '';
-      set({ user: deriveUser(email, token), isLoading: false });
+      const email = (session.tokens?.idToken?.payload?.email as string | undefined) ?? '';
+      const cognitoName = session.tokens?.idToken?.payload?.name as string | undefined;
+      set({ user: deriveUser(email, token, cognitoName), isLoading: false });
     } catch {
       set({ user: null, isLoading: false });
+    }
+  },
+
+  updateName: async (name: string) => {
+    await updateUserAttributes({ userAttributes: { name } });
+    const current = get().user;
+    if (current) {
+      const initials = name
+        .split(' ')
+        .map((n) => n[0])
+        .join('')
+        .slice(0, 2)
+        .toUpperCase();
+      set({ user: { ...current, name, initials } });
     }
   },
 }));
