@@ -10,7 +10,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
-import { MessageSquare, Zap, DollarSign, Activity, Download, Loader2 } from 'lucide-react';
+import { MessageSquare, Zap, DollarSign, Download, Loader2 } from 'lucide-react';
 import { api } from '@/lib/api';
 import type { UsageStats, DailyUsage } from '@/lib/types';
 
