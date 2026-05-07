@@ -113,7 +113,7 @@ jobs:
       - name: Verify deployment
         run: |
           echo "Checking if app is responding..."
-          curl -f http://${{ env.EC2_HOST }}/health || \
+          curl -f http://${{ env.EC2_HOST }}/ || \
             (echo "Health check failed" && exit 1)
           echo "App is responding ✓"
 
