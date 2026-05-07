@@ -74,28 +74,17 @@ jobs:
     if: github.event_name == 'push'
 
     steps:
-      # Set up SSH access to EC2
-      # This creates an SSH key file from the GitHub secret
-      - name: Setup SSH key
-        shell: bash
-        run: |
-          mkdir -p ~/.ssh
-
-          cat > ~/.ssh/chatbot-key.pem << 'EOF'
-          ${{ secrets.EC2_SSH_KEY }}
-          EOF
-
-          chmod 600 ~/.ssh/chatbot-key.pem
-
-          ssh-keyscan -H ${{ env.EC2_HOST }} >> ~/.ssh/known_hosts
-
-          # Validate key format
-          ssh-keygen -lf ~/.ssh/chatbot-key.pem
+      # Use webfactory's SSH action — handles key setup properly
+      # This is the standard way to do SSH in GitHub Actions
+      - name: Setup SSH connection to EC2
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
 
       # Connect to EC2 and deploy
       - name: Deploy to EC2
         run: |
-          ssh -i ~/.ssh/chatbot-key.pem ${{ env.EC2_USER }}@${{ env.EC2_HOST }} << 'DEPLOY_SCRIPT'
+          ssh -o StrictHostKeyChecking=accept-new ${{ env.EC2_USER }}@${{ env.EC2_HOST }} << 'DEPLOY_SCRIPT'
           set -e  # Exit on any error
           
           echo "=== Starting deployment ==="
