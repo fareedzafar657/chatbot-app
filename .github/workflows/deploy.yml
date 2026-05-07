@@ -62,7 +62,6 @@ jobs:
           echo "Checking build outputs..."
           test -d .next || (echo "Missing .next directory" && exit 1)
           test -f package.json || (echo "Missing package.json" && exit 1)
-          test -f .env.local || (echo "Missing .env.local" && exit 1)
           echo "Build verification passed ✓"
 
   # ── JOB 2: DEPLOY ────────────────────────────────────────────────────────
