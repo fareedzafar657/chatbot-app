@@ -77,12 +77,20 @@ jobs:
       # Set up SSH access to EC2
       # This creates an SSH key file from the GitHub secret
       - name: Setup SSH key
+        shell: bash
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/chatbot-key.pem
+
+          cat > ~/.ssh/chatbot-key.pem << 'EOF'
+          ${{ secrets.EC2_SSH_KEY }}
+          EOF
+
           chmod 600 ~/.ssh/chatbot-key.pem
-          # Add EC2 to known_hosts so SSH doesn't prompt
+
           ssh-keyscan -H ${{ env.EC2_HOST }} >> ~/.ssh/known_hosts
+
+          # Validate key format
+          ssh-keygen -lf ~/.ssh/chatbot-key.pem
 
       # Connect to EC2 and deploy
       - name: Deploy to EC2
