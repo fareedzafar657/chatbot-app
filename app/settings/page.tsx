@@ -3,19 +3,24 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  ArrowLeft, Settings, Shield, BarChart2, Sparkles,
+  ArrowLeft, Settings, Shield, BarChart2, Palette, CreditCard,
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/authStore';
 import { GeneralTab } from '@/app/components/settings/GeneralTab';
 import { SecurityTab } from '@/app/components/settings/SecurityTab';
 import { UsageTab } from '@/app/components/settings/UsageTab';
+import { SpendingTab } from '@/app/components/settings/SpendingTab';
+import { AppearanceTab } from '@/app/components/settings/AppearanceTab';
+import { KaiLogo } from '@/app/components/KaiLogo';
 
-type Tab = 'general' | 'security' | 'usage';
+type Tab = 'general' | 'security' | 'usage' | 'appearance' | 'spending';
 
 const TABS: { id: Tab; label: string; icon: React.ElementType; description: string }[] = [
   { id: 'general', label: 'General', icon: Settings, description: 'Profile & preferences' },
   { id: 'security', label: 'Security', icon: Shield, description: 'Password & sessions' },
   { id: 'usage', label: 'Usage', icon: BarChart2, description: 'Analytics & limits' },
+  { id: 'appearance', label: 'Appearance', icon: Palette, description: 'Colors & theme' },
+  { id: 'spending', label: 'Spending', icon: CreditCard, description: 'Billing & plan' },
 ];
 
 export default function SettingsPage() {
@@ -33,6 +38,8 @@ export default function SettingsPage() {
     general: GeneralTab,
     security: SecurityTab,
     usage: UsageTab,
+    appearance: AppearanceTab,
+    spending: SpendingTab,
   }[activeTab];
 
   const activeTabMeta = TABS.find((t) => t.id === activeTab)!;
@@ -44,10 +51,8 @@ export default function SettingsPage() {
       <div className="w-[240px] flex-shrink-0 h-full flex flex-col bg-[#FAFAFA] border-r border-gray-100">
         {/* Logo */}
         <div className="px-4 pt-5 pb-4 flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center">
-            <Sparkles className="w-3.5 h-3.5 text-white" />
-          </div>
-          <span className="text-[15px] font-semibold text-gray-900">Chatbot App</span>
+          <KaiLogo size={28} />
+          <span className="text-[15px] font-semibold text-gray-900">K-AI</span>
         </div>
 
         {/* Back button */}

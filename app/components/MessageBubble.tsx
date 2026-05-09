@@ -1,9 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { Sparkles, Copy, Check } from 'lucide-react';
+import { Copy, Check } from 'lucide-react';
 import { Message } from '@/lib/types';
 import { MarkdownRenderer } from './MarkdownRenderer';
+import { KaiLogo } from './KaiLogo';
 
 function formatTime(dateStr: string): string {
   return new Date(dateStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -46,16 +47,14 @@ export function MessageBubble({ message, isStreaming = false }: MessageBubblePro
   return (
     <div className="flex gap-3 mb-6 group">
       {/* AI Avatar */}
-      <div className="flex-shrink-0 mt-0.5">
-        <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shadow-sm">
-          <Sparkles className="w-3.5 h-3.5 text-white" />
-        </div>
+      <div className="flex-shrink-0">
+        <KaiLogo size={28} />
       </div>
 
       {/* Message content */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-1.5">
-          <span className="text-[12px] font-semibold text-gray-900">Chatbot</span>
+          <span className="text-[12px] font-semibold text-gray-900">K-AI</span>
           {isStreaming && (
             <span className="text-[10px] text-violet-500 font-medium tracking-wide uppercase">
               Generating…

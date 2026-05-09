@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Sparkles, Eye, EyeOff, ArrowRight, Mail } from 'lucide-react';
+import { Eye, EyeOff, ArrowRight, Mail } from 'lucide-react';
 import { useAuthStore } from '@/lib/authStore';
+import { KaiLogo } from '@/app/components/KaiLogo';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -101,12 +102,13 @@ export default function LoginPage() {
 
         {/* Logo */}
         <div className="relative flex items-center gap-2.5 mb-auto">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center">
-            <Sparkles className="w-4 h-4 text-white" />
+          <KaiLogo size={32} />
+          <div>
+            <div className="text-white" style={{ fontSize: '15px', fontWeight: 600 }}>
+              K-AI
+            </div>
+            <div className="text-white/60 text-[10px] leading-tight">by Wondering Kaslana</div>
           </div>
-          <span className="text-white" style={{ fontSize: '15px', fontWeight: 600 }}>
-            Chatbot App
-          </span>
         </div>
 
         {/* Quote */}
@@ -115,7 +117,7 @@ export default function LoginPage() {
             className="text-white/80 mb-4 leading-relaxed"
             style={{ fontSize: '15px' }}
           >
-            &ldquo;Chatbot App has fundamentally changed how our team approaches research and
+            &ldquo;K-AI has fundamentally changed how our team approaches research and
             code reviews. It&apos;s like having a senior engineer available 24/7.&rdquo;
           </blockquote>
           <div className="flex items-center gap-3">
@@ -135,12 +137,13 @@ export default function LoginPage() {
         <div className="w-full max-w-[380px]">
           {/* Mobile logo */}
           <div className="flex lg:hidden items-center gap-2 mb-8">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center">
-              <Sparkles className="w-3.5 h-3.5 text-white" />
+            <KaiLogo size={28} />
+            <div>
+              <div className="text-gray-900" style={{ fontSize: '15px', fontWeight: 600 }}>
+                K-AI
+              </div>
+              <div className="text-gray-400 text-[10px] leading-tight">by Wondering Kaslana</div>
             </div>
-            <span className="text-gray-900" style={{ fontSize: '15px', fontWeight: 600 }}>
-              Chatbot App
-            </span>
           </div>
 
           {/* ------------------------------------------------------------------ */}
@@ -233,8 +236,8 @@ export default function LoginPage() {
                 </h1>
                 <p className="text-gray-500" style={{ fontSize: '14px' }}>
                   {mode === 'signin'
-                    ? 'Sign in to continue to Chatbot App'
-                    : 'Get started with Chatbot App for free'}
+                    ? 'Sign in to continue to K-AI'
+                    : 'Get started with K-AI for free'}
                 </p>
               </div>
 

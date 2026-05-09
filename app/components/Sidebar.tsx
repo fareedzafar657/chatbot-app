@@ -2,10 +2,11 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Trash2, Sparkles, LogOut, MessageSquare, Settings } from 'lucide-react';
+import { Plus, Trash2, LogOut, MessageSquare, Settings } from 'lucide-react';
 import { useChatStore } from '@/lib/store';
 import { useAuthStore } from '@/lib/authStore';
 import { Session } from '@/lib/types';
+import { KaiLogo } from './KaiLogo';
 
 function formatRelativeTime(dateStr: string): string {
   const date = new Date(dateStr);
@@ -214,11 +215,12 @@ export function Sidebar() {
   return (
     <div className="w-[260px] flex-shrink-0 h-full flex flex-col bg-[#FAFAFA] border-r border-gray-100">
       {/* Logo */}
-      <div className="px-4 pt-5 pb-4 flex items-center gap-2.5">
-        <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center">
-          <Sparkles className="w-3.5 h-3.5 text-white" />
+      <div className="px-4 pt-5 pb-3 flex items-center gap-2.5">
+        <KaiLogo size={28} />
+        <div>
+          <div className="text-[15px] font-semibold text-gray-900">K-AI</div>
+          <div className="text-[10px] text-gray-400">by Wondering Kaslana</div>
         </div>
-        <span className="text-[15px] font-semibold text-gray-900">Chatbot App</span>
       </div>
 
       {/* New Chat button */}

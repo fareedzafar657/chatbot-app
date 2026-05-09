@@ -8,6 +8,8 @@ export interface Message {
   createdAt: string;
   updatedAt: string;
   parentMsgId?: string;
+  // Local state for rendering
+  isStreaming?: boolean;
 }
 
 export interface Branch {
@@ -17,7 +19,10 @@ export interface Branch {
   parentMsgId?: string;
   selectedMsgIds: string[];
   label: string;
+  description?: string;
   createdAt: string;
+  // For UI rendering
+  messageCount?: number;
 }
 
 export interface Session {

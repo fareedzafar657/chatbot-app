@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import '@/lib/amplify'; // configures Amplify on the client
 import { useAuthStore } from '@/lib/authStore';
+import { ThemeProvider } from '@/app/context/ThemeContext';
 import { ErrorToast } from './ErrorToast';
 
 export function AppProviders({ children }: { children: React.ReactNode }) {
@@ -14,9 +15,9 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <>
+    <ThemeProvider>
       {children}
       <ErrorToast />
-    </>
+    </ThemeProvider>
   );
 }

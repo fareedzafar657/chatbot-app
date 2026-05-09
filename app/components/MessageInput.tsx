@@ -75,7 +75,7 @@ export function MessageInput() {
             onChange={(e) => setValue(e.target.value)}
             onKeyDown={handleKeyDown}
             disabled={isStreaming}
-            placeholder={isStreaming ? 'Generating response…' : 'Message Chatbot…'}
+            placeholder={isStreaming ? 'K-AI is thinking…' : 'Message K-AI…'}
             rows={1}
             className="flex-1 bg-transparent text-[14px] text-gray-800 placeholder-gray-400 outline-none resize-none leading-relaxed py-0.5 min-h-[24px] max-h-[200px] disabled:cursor-not-allowed"
           />
@@ -107,7 +107,7 @@ export function MessageInput() {
 
         {/* Disclaimer */}
         <p className="text-center text-[11px] text-gray-400 mt-2.5">
-          Chatbot can make mistakes. Verify important information.
+          K-AI can make mistakes. Verify important information.
         </p>
       </div>
     </div>

@@ -48,6 +48,8 @@ interface ChatActions {
   toggleBranchModal(show: boolean): void;
   forkBranch(selectedMsgIds: string[], label?: string): void;
   setActiveBranch(branchId: string): void;
+  autoSelectMessages(): string[];
+  cherryPickBranch(selectedMsgIds: string[], branchName: string): void;
   dismissError(): void;
 }
 
@@ -455,6 +457,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       set((state) => ({
         branches: [...state.branches, newBranch],
         activeBranchId: newBranch.branchId,
+        messages: state.messages.filter(m => selectedMsgIds.includes(m.msgId)),
         showBranchModal: false,
         sessions: state.sessions.map((s) =>
           s.sessionId === activeSessionId
@@ -462,8 +465,6 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             : s
         ),
       }));
-
-      await get().loadMessages(newBranch.branchId);
     } catch (err) {
       set({ errorMessage: (err as Error).message });
     }
@@ -487,6 +488,59 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     }
 
     await get().loadMessages(branchId);
+  },
+
+  autoSelectMessages: () => {
+    const { messages } = get();
+    const selected = new Set<string>();
+
+    const first2 = messages.slice(0, 2).map((m) => m.msgId);
+    first2.forEach((id) => selected.add(id));
+
+    const last4 = messages.slice(-4).map((m) => m.msgId);
+    last4.forEach((id) => selected.add(id));
+
+    messages.forEach((m) => {
+      if (m.role === 'assistant' && m.content.length > 400) {
+        selected.add(m.msgId);
+      }
+      if (m.role === 'user' && m.content.includes('?')) {
+        selected.add(m.msgId);
+      }
+    });
+
+    return Array.from(selected);
+  },
+
+  cherryPickBranch: (selectedMsgIds, branchName) => {
+    const { activeSessionId, activeBranchId, branches, messages } = get();
+    if (!activeSessionId || !activeBranchId) return;
+
+    const activeBranch = branches.find((b) => b.branchId === activeBranchId);
+    if (!activeBranch) return;
+
+    const newBranchId = genTempId();
+    const now = new Date().toISOString();
+
+    const newBranch: Branch = {
+      branchId: newBranchId,
+      sessionId: activeSessionId,
+      parentBranchId: activeBranchId,
+      parentMsgId: selectedMsgIds[0],
+      selectedMsgIds,
+      label: branchName,
+      description: `Cherry-picked from ${activeBranch.label}`,
+      createdAt: now,
+    };
+
+    const filteredMessages = messages.filter((m) => selectedMsgIds.includes(m.msgId));
+
+    set((state) => ({
+      branches: [...state.branches, newBranch],
+      activeBranchId: newBranchId,
+      messages: filteredMessages,
+      showBranchModal: false,
+    }));
   },
 
   dismissError: () => set({ errorMessage: null }),
