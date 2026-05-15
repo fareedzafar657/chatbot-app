@@ -6,6 +6,8 @@ import type {
   PaginatedSessions,
   PaginatedMessages,
   ForkBranchRequest,
+  UpdateSessionRequest,
+  PatchMessageRequest,
   UsageStats,
 } from './types';
 
@@ -32,18 +34,13 @@ function transformKeys(obj: unknown): unknown {
 
 // ─── Axios client ─────────────────────────────────────────────────────────────
 
-const client = axios.create({ baseURL: BASE_URL });
+const client = axios.create({ baseURL: BASE_URL, timeout: 20000 });
 
 // Attach Cognito access token to every request
 client.interceptors.request.use(async (config) => {
-  try {
-    const { useAuthStore } = await import('./authStore');
-    const token = await useAuthStore.getState().getAccessToken();
-    config.headers.Authorization = `Bearer ${token}`;
-  } catch {
-    // If no token available, send request anyway (Lambda may have AUTH_BYPASS)
-    config.headers.Authorization = 'Bearer bypass';
-  }
+  const { useAuthStore } = await import('./authStore');
+  const token = await useAuthStore.getState().getAccessToken();
+  config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
 
@@ -60,7 +57,11 @@ client.interceptors.response.use(
       if (typeof window !== 'undefined') window.location.href = '/login';
     }
     const detail = err.response?.data?.detail ?? err.response?.data?.message ?? err.message;
-    throw new Error(typeof detail === 'string' ? detail : JSON.stringify(detail));
+    // FastAPI 422 validation errors return detail as an array of objects
+    const message = Array.isArray(detail)
+      ? detail.map((d) => `${d.loc?.slice(1).join('.')}: ${d.msg}`).join('; ')
+      : typeof detail === 'string' ? detail : JSON.stringify(detail);
+    throw new Error(message);
   }
 );
 
@@ -75,10 +76,7 @@ export const api = {
   getSession: (sessionId: string): Promise<Session> =>
     client.get(`/sessions/${sessionId}`).then((r) => r.data),
 
-  updateSession: (
-    sessionId: string,
-    data: { title?: string; active_branch_id?: string }
-  ): Promise<Session> =>
+  updateSession: (sessionId: string, data: UpdateSessionRequest): Promise<Session> =>
     client.patch(`/sessions/${sessionId}`, data).then((r) => r.data),
 
   deleteSession: (sessionId: string): Promise<void> =>
@@ -100,10 +98,7 @@ export const api = {
       })
       .then((r) => r.data),
 
-  patchMessage: (
-    msgId: string,
-    data: { state?: string; content?: string }
-  ): Promise<Message> =>
+  patchMessage: (msgId: string, data: PatchMessageRequest): Promise<Message> =>
     client.patch(`/messages/${msgId}`, data).then((r) => r.data),
 
   getUsageStats: (): Promise<UsageStats> =>

@@ -42,9 +42,6 @@ interface ChatActions {
   renameSession(sessionId: string, title: string): Promise<void>;
   sendMessage(prompt: string): void;
   stopStreaming(): void;
-  setStreaming(streaming: boolean): void;
-  addMessage(sessionId: string, message: Message): void;
-  appendToLastMessage(sessionId: string, messageId: string, content: string): void;
   toggleBranchModal(show: boolean): void;
   forkBranch(selectedMsgIds: string[], label?: string): void;
   setActiveBranch(branchId: string): void;
@@ -79,8 +76,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       const result = await api.listSessions();
       set({
         sessions: result.items,
-        hasMoreSessions: result.has_more,
-        sessionsCursor: result.next_cursor ?? null,
+        hasMoreSessions: result.hasMore,
+        sessionsCursor: result.nextCursor ?? null,
         isLoadingSessions: false,
       });
       const { activeSessionId } = get();
@@ -105,8 +102,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       const result = await api.listSessions(sessionsCursor);
       set({
         sessions: [...sessions, ...result.items],
-        hasMoreSessions: result.has_more,
-        sessionsCursor: result.next_cursor ?? null,
+        hasMoreSessions: result.hasMore,
+        sessionsCursor: result.nextCursor ?? null,
       });
     } catch (err) {
       set({ errorMessage: (err as Error).message });
@@ -143,8 +140,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       set((state) => ({
         // Cursor-based pagination: prepend older messages at the top
         messages: cursor ? [...result.items, ...state.messages] : result.items,
-        hasMoreMessages: result.has_more,
-        messagesCursor: result.next_cursor ?? null,
+        hasMoreMessages: result.hasMore,
+        messagesCursor: result.nextCursor ?? null,
         isLoadingMessages: false,
       }));
     } catch (err) {
@@ -189,6 +186,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   },
 
   deleteSession: async (sessionId) => {
+    const snapshot = get().sessions;
+
     // Optimistic removal
     set((state) => {
       const remaining = state.sessions.filter((s) => s.sessionId !== sessionId);
@@ -217,7 +216,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     try {
       await api.deleteSession(sessionId);
     } catch (err) {
-      set({ errorMessage: (err as Error).message });
+      // Rollback optimistic removal
+      set({ sessions: snapshot, errorMessage: (err as Error).message });
     }
   },
 
@@ -328,17 +328,17 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             set((state) => ({
               messages: state.messages.map((m) =>
                 m.msgId === tempAiMsgId
-                  ? { ...m, content: m.content + text }
+                  ? { ...m, content: (m.content ?? '') + text }
                   : m
               ),
             }));
           },
 
-          onDone: (msgId, msgState) => {
+          onDone: (msgId, msgState, inputTokens, outputTokens) => {
             set((state) => ({
               messages: state.messages.map((m) =>
                 m.msgId === tempAiMsgId
-                  ? { ...m, msgId, state: msgState as Message['state'], branchId: realBranchId }
+                  ? { ...m, msgId, state: msgState, branchId: realBranchId, inputTokens, outputTokens }
                   : m
               ),
               isStreaming: false,
@@ -356,8 +356,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
                     branchCount: state.sessions.find((ss) => ss.sessionId === s.sessionId)
                       ?.branchCount,
                   })),
-                  hasMoreSessions: result.has_more,
-                  sessionsCursor: result.next_cursor ?? null,
+                  hasMoreSessions: result.hasMore,
+                  sessionsCursor: result.nextCursor ?? null,
                 }));
               })
               .catch(() => {});
@@ -410,8 +410,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   },
 
   stopStreaming: async () => {
-    const { abortController, messages } = get();
-    const streamingMsg = [...messages].reverse().find((m) => m.role === 'assistant');
+    const { abortController, messages, streamingMessageId } = get();
+    const streamingMsg = messages.find((m) => m.msgId === streamingMessageId);
 
     if (abortController) abortController.abort();
     set({ isStreaming: false, streamingMessageId: null, abortController: null });
@@ -429,14 +429,6 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       }
     }
   },
-
-  // Legacy stubs — kept so no component imports break
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  setStreaming: (_s: boolean) => {},
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  addMessage: (_sid: string, _msg: Message) => {},
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  appendToLastMessage: (_sid: string, _mid: string, _c: string) => {},
 
   toggleBranchModal: (show) => set({ showBranchModal: show }),
 
@@ -501,10 +493,10 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     last4.forEach((id) => selected.add(id));
 
     messages.forEach((m) => {
-      if (m.role === 'assistant' && m.content.length > 400) {
+      if (m.role === 'assistant' && (m.content?.length ?? 0) > 400) {
         selected.add(m.msgId);
       }
-      if (m.role === 'user' && m.content.includes('?')) {
+      if (m.role === 'user' && m.content?.includes('?')) {
         selected.add(m.msgId);
       }
     });

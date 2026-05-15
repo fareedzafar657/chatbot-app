@@ -34,7 +34,8 @@ interface AdaptedMessage {
   timestamp: Date;
 }
 
-function truncate(str: string, max: number) {
+function truncate(str: string | null, max: number) {
+  if (!str) return '';
   return str.length > max ? str.slice(0, max) + '…' : str;
 }
 

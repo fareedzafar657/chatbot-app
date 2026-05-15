@@ -1,4 +1,7 @@
+import type { Message } from './types';
+
 const STREAMING_URL = process.env.NEXT_PUBLIC_STREAMING_LAMBDA_URL!;
+const STREAM_TIMEOUT_MS = 30_000;
 
 interface StreamParams {
   prompt: string;
@@ -10,7 +13,7 @@ interface StreamCallbacks {
   onMetadata(sessionId: string, branchId: string): void;
   onUserMessage(msgId: string): void;
   onDelta(text: string): void;
-  onDone(msgId: string, state: string, inputTokens: number, outputTokens: number): void;
+  onDone(msgId: string, state: Message['state'], inputTokens: number, outputTokens: number): void;
   onError(message: string): void;
 }
 
@@ -21,6 +24,9 @@ export async function streamChat(
 ): Promise<void> {
   const { useAuthStore } = await import('./authStore');
   const token = await useAuthStore.getState().getAccessToken();
+
+  const timeoutSignal = AbortSignal.timeout(STREAM_TIMEOUT_MS);
+  const combinedSignal = AbortSignal.any([signal, timeoutSignal]);
 
   let response: Response;
   try {
@@ -35,7 +41,7 @@ export async function streamChat(
         sessionId: params.sessionId,
         branchId: params.branchId,
       }),
-      signal,
+      signal: combinedSignal,
     });
   } catch (err) {
     if ((err as Error).name === 'AbortError') return;
@@ -44,8 +50,9 @@ export async function streamChat(
   }
 
   if (!response.ok) {
-    const text = await response.text().catch(() => '');
-    callbacks.onError(`HTTP ${response.status}: ${text}`);
+    const body = await response.json().catch(() => null) ?? await response.text().catch(() => '');
+    const message = typeof body === 'object' ? (body?.detail ?? body?.message ?? JSON.stringify(body)) : body;
+    callbacks.onError(`HTTP ${response.status}: ${message}`);
     return;
   }
 

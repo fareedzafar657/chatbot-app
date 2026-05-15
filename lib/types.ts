@@ -1,14 +1,24 @@
+// All API responses pass through a snake_case → camelCase transformer in lib/api.ts,
+// so these types use camelCase even though the backend sends snake_case.
+// Request payload types (ForkBranchRequest, etc.) are the exception — they are
+// sent directly to the API and must stay snake_case.
+
 export interface Message {
   msgId: string;
   sessionId: string;
   branchId: string;
   role: 'user' | 'assistant';
-  content: string;
+  /** null when the message is deleted or not yet streamed */
+  content: string | null;
   state: 'active' | 'stopped' | 'edited' | 'deleted';
+  /** absent on optimistic local messages created before the server responds */
+  userId?: string;
+  parentMsgId?: string;
+  inputTokens?: number;
+  outputTokens?: number;
   createdAt: string;
   updatedAt: string;
-  parentMsgId?: string;
-  // Local state for rendering
+  // Local-only — not from API
   isStreaming?: boolean;
 }
 
@@ -17,11 +27,12 @@ export interface Branch {
   sessionId: string;
   parentBranchId?: string;
   parentMsgId?: string;
+  /** Message IDs carried over from the parent branch when forking */
   selectedMsgIds: string[];
   label: string;
-  description?: string;
   createdAt: string;
-  // For UI rendering
+  // Local-only — not from API
+  description?: string;
   messageCount?: number;
 }
 
@@ -31,22 +42,40 @@ export interface Session {
   trunkBranchId: string;
   activeBranchId: string;
   title?: string;
-  /** Populated locally after loadBranches — used for sidebar display */
-  branchCount?: number;
   createdAt: string;
   updatedAt: string;
+  // Local-only — populated after loadBranches, used for sidebar display
+  branchCount?: number;
 }
 
 export interface PaginatedMessages {
   items: Message[];
-  has_more: boolean;
-  next_cursor?: string;
+  count: number;
+  page: number;
+  pageSize: number;
+  hasMore: boolean;
+  nextCursor?: string;
 }
 
 export interface PaginatedSessions {
   items: Session[];
-  has_more: boolean;
-  next_cursor?: string;
+  count: number;
+  page: number;
+  pageSize: number;
+  hasMore: boolean;
+  nextCursor?: string;
+}
+
+// ─── API request payloads (snake_case — sent directly to the backend) ────────
+
+export interface UpdateSessionRequest {
+  title?: string;
+  active_branch_id?: string;
+}
+
+export interface PatchMessageRequest {
+  state?: Message['state'];
+  content?: string;
 }
 
 export interface ForkBranchRequest {
@@ -57,6 +86,8 @@ export interface ForkBranchRequest {
   label?: string;
 }
 
+// ─── Usage stats ──────────────────────────────────────────────────────────────
+
 export interface DailyUsage {
   date: string;
   inputTokens: number;
@@ -64,7 +95,7 @@ export interface DailyUsage {
   messageCount: number;
 }
 
-export interface ModelUsage {
+export interface ModelBreakdown {
   modelId: string;
   tokenCount: number;
   percentage: number;
@@ -77,5 +108,5 @@ export interface UsageStats {
   totalTokens: number;
   estimatedCostUsd: number;
   dailyUsage: DailyUsage[];
-  modelBreakdown: ModelUsage[];
+  modelBreakdown: ModelBreakdown[];
 }

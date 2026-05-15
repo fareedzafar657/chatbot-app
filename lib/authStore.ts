@@ -5,7 +5,6 @@ import {
   signUp,
   confirmSignUp as amplifyConfirmSignUp,
   fetchAuthSession,
-  getCurrentUser,
   updateUserAttributes,
 } from 'aws-amplify/auth';
 
@@ -14,7 +13,6 @@ export interface AuthUser {
   email: string;
   initials: string;
   plan: string;
-  accessToken: string;
 }
 
 interface AuthState {
@@ -32,7 +30,11 @@ interface AuthActions {
   updateName(name: string): Promise<void>;
 }
 
-function deriveUser(email: string, token: string, cognitoName?: string): AuthUser {
+function deriveInitials(name: string): string {
+  return name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase();
+}
+
+function deriveUser(email: string, cognitoName?: string): AuthUser {
   let name: string;
   if (cognitoName?.trim()) {
     name = cognitoName.trim();
@@ -43,13 +45,7 @@ function deriveUser(email: string, token: string, cognitoName?: string): AuthUse
       .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
       .join(' ');
   }
-  const initials = name
-    .split(' ')
-    .map((n) => n[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase();
-  return { name, email, initials, plan: 'free', accessToken: token };
+  return { name, email, initials: deriveInitials(name), plan: 'free' };
 }
 
 export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
@@ -61,10 +57,9 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
     try {
       await signIn({ username: email, password });
       const session = await fetchAuthSession();
-      const token = session.tokens?.accessToken?.toString();
-      if (!token) throw new Error('Authentication succeeded but no access token was returned.');
+      if (!session.tokens?.accessToken) throw new Error('Authentication succeeded but no access token was returned.');
       const cognitoName = session.tokens?.idToken?.payload?.name as string | undefined;
-      set({ user: deriveUser(email, token, cognitoName), isLoading: false });
+      set({ user: deriveUser(email, cognitoName), isLoading: false });
     } catch (err) {
       set({ isLoading: false });
       throw err;
@@ -97,11 +92,6 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
       const session = await fetchAuthSession({ forceRefresh: false });
       const token = session.tokens?.accessToken?.toString();
       if (!token) throw new Error('No active session.');
-      // Keep cached token current
-      const current = get().user;
-      if (current && current.accessToken !== token) {
-        set({ user: { ...current, accessToken: token } });
-      }
       return token;
     } catch {
       set({ user: null });
@@ -112,13 +102,12 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
   restoreSession: async () => {
     set({ isLoading: true });
     try {
-      await getCurrentUser();
       const session = await fetchAuthSession();
       const token = session.tokens?.accessToken?.toString();
       if (!token) throw new Error('No token');
       const email = (session.tokens?.idToken?.payload?.email as string | undefined) ?? '';
       const cognitoName = session.tokens?.idToken?.payload?.name as string | undefined;
-      set({ user: deriveUser(email, token, cognitoName), isLoading: false });
+      set({ user: deriveUser(email, cognitoName), isLoading: false });
     } catch {
       set({ user: null, isLoading: false });
     }
@@ -128,13 +117,7 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
     await updateUserAttributes({ userAttributes: { name } });
     const current = get().user;
     if (current) {
-      const initials = name
-        .split(' ')
-        .map((n) => n[0])
-        .join('')
-        .slice(0, 2)
-        .toUpperCase();
-      set({ user: { ...current, name, initials } });
+      set({ user: { ...current, name, initials: deriveInitials(name) } });
     }
   },
 }));

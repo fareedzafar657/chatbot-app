@@ -21,7 +21,7 @@ export function MessageBubble({ message, isStreaming = false }: MessageBubblePro
 
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(message.content);
+      await navigator.clipboard.writeText(message.content ?? '');
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
