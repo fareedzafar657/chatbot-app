@@ -6,6 +6,8 @@ import type {
   PaginatedSessions,
   PaginatedMessages,
   ForkBranchRequest,
+  UpdateSessionRequest,
+  PatchMessageRequest,
   UsageStats,
 } from './types';
 
@@ -32,18 +34,13 @@ function transformKeys(obj: unknown): unknown {
 
 // ─── Axios client ─────────────────────────────────────────────────────────────
 
-const client = axios.create({ baseURL: BASE_URL });
+const client = axios.create({ baseURL: BASE_URL, timeout: 20000 });
 
 // Attach Cognito access token to every request
 client.interceptors.request.use(async (config) => {
-  try {
-    const { useAuthStore } = await import('./authStore');
-    const token = await useAuthStore.getState().getAccessToken();
-    config.headers.Authorization = `Bearer ${token}`;
-  } catch {
-    // If no token available, send request anyway (Lambda may have AUTH_BYPASS)
-    config.headers.Authorization = 'Bearer bypass';
-  }
+  const { useAuthStore } = await import('./authStore');
+  const token = await useAuthStore.getState().getAccessToken();
+  config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
 
@@ -54,13 +51,27 @@ client.interceptors.response.use(
     return res;
   },
   async (err) => {
-    if (err.response?.status === 401) {
+    const status = err.response?.status;
+
+    if (status === 401) {
       const { useAuthStore } = await import('./authStore');
       await useAuthStore.getState().logout();
       if (typeof window !== 'undefined') window.location.href = '/login';
+      throw new Error('Your session has expired. Please sign in again.');
     }
+
+    // Map status codes to user-safe messages; log detail for debugging only
     const detail = err.response?.data?.detail ?? err.response?.data?.message ?? err.message;
-    throw new Error(typeof detail === 'string' ? detail : JSON.stringify(detail));
+    console.error('[api] request failed', { status, detail });
+
+    const userMessage =
+      status === 403 ? 'You do not have permission to perform this action.' :
+      status === 404 ? 'The requested resource was not found.' :
+      status === 422 ? 'Invalid request. Please check your input.' :
+      status >= 500  ? 'Something went wrong on our end. Please try again.' :
+                       'Request failed. Please try again.';
+
+    throw new Error(userMessage);
   }
 );
 
@@ -75,10 +86,7 @@ export const api = {
   getSession: (sessionId: string): Promise<Session> =>
     client.get(`/sessions/${sessionId}`).then((r) => r.data),
 
-  updateSession: (
-    sessionId: string,
-    data: { title?: string; active_branch_id?: string }
-  ): Promise<Session> =>
+  updateSession: (sessionId: string, data: UpdateSessionRequest): Promise<Session> =>
     client.patch(`/sessions/${sessionId}`, data).then((r) => r.data),
 
   deleteSession: (sessionId: string): Promise<void> =>
@@ -100,10 +108,7 @@ export const api = {
       })
       .then((r) => r.data),
 
-  patchMessage: (
-    msgId: string,
-    data: { state?: string; content?: string }
-  ): Promise<Message> =>
+  patchMessage: (msgId: string, data: PatchMessageRequest): Promise<Message> =>
     client.patch(`/messages/${msgId}`, data).then((r) => r.data),
 
   getUsageStats: (): Promise<UsageStats> =>

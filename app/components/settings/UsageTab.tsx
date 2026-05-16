@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type ElementType } from 'react';
 import {
   BarChart,
   Bar,
@@ -11,11 +11,17 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { MessageSquare, Zap, DollarSign, Download, Loader2 } from 'lucide-react';
+import { cn } from '@/lib/cn';
 import { api } from '@/lib/api';
 import type { UsageStats, DailyUsage } from '@/lib/types';
 
 const MODEL_COLORS = ['#6366F1', '#8B5CF6', '#A78BFA', '#C4B5FD'];
 const PERIODS = ['Last 7 days', 'Last 30 days', 'Last 3 months'];
+const PERIOD_DAYS: Record<string, number> = {
+  'Last 7 days': 7,
+  'Last 30 days': 30,
+  'Last 3 months': 90,
+};
 
 function formatTokens(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -40,7 +46,7 @@ function formatDate(dateStr: string): string {
 }
 
 function filterByPeriod(data: DailyUsage[], period: string): DailyUsage[] {
-  const days = period === 'Last 7 days' ? 7 : period === 'Last 30 days' ? 30 : 90;
+  const days = PERIOD_DAYS[period] ?? 30;
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - days);
   const cutoffStr = cutoff.toISOString().slice(0, 10);
@@ -54,7 +60,7 @@ function StatCard({
   sub,
   color,
 }: {
-  icon: React.ElementType;
+  icon: ElementType;
   label: string;
   value: string;
   sub: string;
@@ -95,7 +101,7 @@ export function UsageTab() {
   useEffect(() => {
     api.getUsageStats()
       .then(setStats)
-      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load usage data.'))
+      .catch(() => setError('Failed to load usage data. Please try again.'))
       .finally(() => setLoading(false));
   }, []);
 
@@ -121,9 +127,7 @@ export function UsageTab() {
     tokens: d.inputTokens + d.outputTokens,
   }));
 
-  const modelBreakdown = stats.modelBreakdown.length > 0
-    ? stats.modelBreakdown
-    : [{ modelId: 'amazon.nova-micro-v1:0', tokenCount: stats.totalTokens, percentage: 100 }];
+  const modelBreakdown = stats.modelBreakdown;
 
   const totalMsgs = filtered.reduce((s, d) => s + d.messageCount, 0);
 
@@ -166,11 +170,10 @@ export function UsageTab() {
               <button
                 key={p}
                 onClick={() => setPeriod(p)}
-                className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-all ${
-                  period === p
-                    ? 'bg-white text-gray-900 shadow-sm'
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
+                className={cn(
+                  'px-2.5 py-1 rounded-md text-[11px] font-medium transition-all',
+                  period === p ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                )}
               >
                 {p.replace('Last ', '')}
               </button>
@@ -213,6 +216,10 @@ export function UsageTab() {
           </button>
         </div>
 
+        {modelBreakdown.length === 0 ? (
+          <div className="py-6 text-center text-[13px] text-gray-400">No model data available.</div>
+        ) : (
+          <>
         <div className="flex h-2.5 rounded-full overflow-hidden mb-5 gap-0.5">
           {modelBreakdown.map((m, i) => (
             <div
@@ -250,6 +257,8 @@ export function UsageTab() {
             </div>
           ))}
         </div>
+          </>
+        )}
       </div>
     </div>
   );

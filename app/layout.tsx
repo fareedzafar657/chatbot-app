@@ -10,8 +10,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: 'AI Chatbot Web App',
-  description: 'AI Chatbot Web App',
+  title: 'Kai',
+  description: 'AI chat with branching conversations',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

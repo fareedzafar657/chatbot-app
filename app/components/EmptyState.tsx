@@ -8,17 +8,12 @@ export function EmptyState() {
   const sendMessage = useChatStore((state) => state.sendMessage);
 
   return (
-    <div className="flex flex-col items-center justify-center h-full px-6 text-center">
-      {/* Logo */}
+    <div className="flex-1 flex flex-col items-center justify-center min-h-0 px-6 text-center overflow-y-auto">
       <div className="mb-6">
         <KaiLogo size={56} />
       </div>
 
-      {/* Greeting */}
-      <h2
-        className="text-gray-900 mb-1"
-        style={{ fontSize: '22px', fontWeight: 600 }}
-      >
+      <h2 className="text-[22px] font-semibold text-gray-900 mb-1">
         Hello, I&apos;m K-AI
       </h2>
       <p className="text-[11px] text-gray-400 mb-8">by Wondering Kaslana</p>

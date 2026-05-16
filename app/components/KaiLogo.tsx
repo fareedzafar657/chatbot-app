@@ -53,7 +53,7 @@ export function KaiLogo({ size = 32 }: KaiLogoProps) {
       {/* Head silhouette */}
       <path d={headPath} fill="white" fillOpacity="0.95" />
 
-      {/* Circuit lines — clipped to head silhouette */}
+      {/* Circuit lines — pixel coords are tied to the 110×110 viewBox; don't adjust independently */}
       <g clipPath={`url(#clip-${uid})`}>
         {/* Line 1 — top */}
         <line x1="46" y1="22" x2="76" y2="22" stroke={`url(#cg-${uid})`} strokeWidth="2.2" strokeLinecap="round" />

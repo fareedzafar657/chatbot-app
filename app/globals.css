@@ -20,6 +20,13 @@
   }
 }
 
+@layer components {
+  /* Standard text input — used across login, settings, and any future forms */
+  .input-field {
+    @apply w-full px-3.5 py-2.5 text-[14px] bg-white border border-gray-200 rounded-xl outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100 transition-all placeholder-gray-400;
+  }
+}
+
 @keyframes cursor-blink {
   0%,
   100% {

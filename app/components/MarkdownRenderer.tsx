@@ -1,47 +1,14 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Check, Copy } from 'lucide-react';
-
-function parseInline(text: string): React.ReactNode[] {
-  const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`|\*[^*]+\*)/g);
-  return parts.map((part, i) => {
-    if (part.startsWith('**') && part.endsWith('**')) {
-      return (
-        <strong key={i} className="font-semibold text-gray-900">
-          {part.slice(2, -2)}
-        </strong>
-      );
-    }
-    if (part.startsWith('`') && part.endsWith('`') && part.length > 2) {
-      return (
-        <code
-          key={i}
-          className="bg-gray-100 text-[#c7254e] px-1.5 py-0.5 rounded text-[0.8em] font-mono border border-gray-200"
-        >
-          {part.slice(1, -1)}
-        </code>
-      );
-    }
-    if (part.startsWith('*') && part.endsWith('*') && part.length > 2) {
-      return (
-        <em key={i} className="italic">
-          {part.slice(1, -1)}
-        </em>
-      );
-    }
-    return <React.Fragment key={i}>{part}</React.Fragment>;
-  });
-}
+import React from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { Check, Copy, X } from 'lucide-react';
+import { useCopyToClipboard } from '@/lib/hooks';
 
 function CodeBlock({ lang, code }: { lang: string; code: string }) {
-  const [copied, setCopied] = useState(false);
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(code).catch(() => {});
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
+  const [copyState, copy] = useCopyToClipboard();
+  const handleCopy = () => copy(code);
 
   return (
     <div className="my-3 rounded-xl overflow-hidden border border-gray-200 shadow-sm">
@@ -51,14 +18,17 @@ function CodeBlock({ lang, code }: { lang: string; code: string }) {
         </span>
         <button
           onClick={handleCopy}
+          title={copyState === 'error' ? 'Copy failed' : 'Copy code'}
           className="flex items-center gap-1.5 text-[11px] text-gray-400 hover:text-gray-700 transition-colors"
         >
-          {copied ? (
+          {copyState === 'copied' ? (
             <Check className="w-3 h-3 text-emerald-500" />
+          ) : copyState === 'error' ? (
+            <X className="w-3 h-3 text-red-400" />
           ) : (
             <Copy className="w-3 h-3" />
           )}
-          <span>{copied ? 'Copied' : 'Copy'}</span>
+          <span>{copyState === 'copied' ? 'Copied' : copyState === 'error' ? 'Failed' : 'Copy'}</span>
         </button>
       </div>
       <pre className="p-4 bg-[#1C1C28] text-[#E2E8F0] text-[13px] font-mono overflow-x-auto leading-[1.7]">
@@ -68,129 +38,83 @@ function CodeBlock({ lang, code }: { lang: string; code: string }) {
   );
 }
 
-function parseTextSection(text: string, keyOffset: number): React.ReactNode[] {
-  const lines = text.split('\n');
-  const nodes: React.ReactNode[] = [];
-  let i = 0;
-  let key = keyOffset;
-
-  while (i < lines.length) {
-    const line = lines[i];
-
-    if (line.trim() === '') {
-      i++;
-      continue;
-    }
-
-    // Heading
-    const headingMatch = line.match(/^(#{1,3})\s+(.+)/);
-    if (headingMatch) {
-      const level = headingMatch[1].length;
-      const content = headingMatch[2];
-      const cls =
-        level === 1
-          ? 'text-[15px] font-semibold text-gray-900 mt-4 mb-1'
-          : level === 2
-          ? 'text-[14px] font-semibold text-gray-900 mt-3 mb-1'
-          : 'text-[13px] font-semibold text-gray-800 mt-2 mb-0.5';
-      nodes.push(
-        <div key={key++} className={cls}>
-          {parseInline(content)}
-        </div>
-      );
-      i++;
-      continue;
-    }
-
-    // Unordered list
-    if (line.match(/^[-*]\s/)) {
-      const items: string[] = [];
-      while (i < lines.length && lines[i].match(/^[-*]\s/)) {
-        items.push(lines[i].replace(/^[-*]\s/, ''));
-        i++;
-      }
-      nodes.push(
-        <ul key={key++} className="space-y-1.5 my-2">
-          {items.map((item, j) => (
-            <li key={j} className="flex items-start gap-2.5">
-              <span className="mt-[9px] w-1 h-1 rounded-full bg-gray-400 flex-shrink-0" />
-              <span>{parseInline(item)}</span>
-            </li>
-          ))}
-        </ul>
-      );
-      continue;
-    }
-
-    // Ordered list
-    if (line.match(/^\d+\.\s/)) {
-      const items: string[] = [];
-      const start = parseInt(line.match(/^(\d+)\./)?.[1] ?? '1');
-      while (i < lines.length && lines[i].match(/^\d+\.\s/)) {
-        items.push(lines[i].replace(/^\d+\.\s/, ''));
-        i++;
-      }
-      nodes.push(
-        <ol key={key++} className="space-y-1.5 my-2">
-          {items.map((item, j) => (
-            <li key={j} className="flex items-start gap-2.5">
-              <span className="text-gray-400 text-[12px] mt-px min-w-[18px] font-mono">
-                {start + j}.
-              </span>
-              <span>{parseInline(item)}</span>
-            </li>
-          ))}
-        </ol>
-      );
-      continue;
-    }
-
-    // Regular paragraph
-    nodes.push(
-      <p key={key++} className="leading-relaxed">
-        {parseInline(line)}
-      </p>
-    );
-    i++;
-  }
-
-  return nodes;
-}
-
 interface MarkdownRendererProps {
   content: string;
-  isStreaming?: boolean;
+  isStreaming: boolean;
 }
 
-export function MarkdownRenderer({
-  content,
-  isStreaming = false,
-}: MarkdownRendererProps) {
-  const nodes: React.ReactNode[] = [];
-  const codeBlockRegex = /```(\w*)\n?([\s\S]*?)```/g;
-  let lastIndex = 0;
-  let match: RegExpExecArray | null;
-  let keyOffset = 0;
-
-  while ((match = codeBlockRegex.exec(content)) !== null) {
-    if (match.index > lastIndex) {
-      const textBefore = content.slice(lastIndex, match.index);
-      nodes.push(...parseTextSection(textBefore, keyOffset));
-      keyOffset += 200;
-    }
-    nodes.push(
-      <CodeBlock key={`code-${match.index}`} lang={match[1]} code={match[2].trim()} />
-    );
-    lastIndex = match.index + match[0].length;
-  }
-
-  if (lastIndex < content.length) {
-    nodes.push(...parseTextSection(content.slice(lastIndex), keyOffset));
-  }
-
+export function MarkdownRenderer({ content, isStreaming }: MarkdownRendererProps) {
   return (
     <div className="text-[14px] text-gray-800 leading-relaxed space-y-2">
-      {nodes}
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={{
+          // ── Headings ───────────────────────────────────────────────────────
+          h1: ({ children }) => <h1 className="text-[15px] font-semibold text-gray-900 mt-4 mb-1">{children}</h1>,
+          h2: ({ children }) => <h2 className="text-[14px] font-semibold text-gray-900 mt-3 mb-1">{children}</h2>,
+          h3: ({ children }) => <h3 className="text-[13px] font-semibold text-gray-800 mt-2 mb-0.5">{children}</h3>,
+          // ── Inline text ────────────────────────────────────────────────────
+          p:  ({ children }) => <p className="leading-relaxed">{children}</p>,
+          strong: ({ children }) => <strong className="font-semibold text-gray-900">{children}</strong>,
+          em:     ({ children }) => <em className="italic">{children}</em>,
+          // ── Code ───────────────────────────────────────────────────────────
+          code: ({ className, children, ...props }) => {
+            // Block code is handled by the `pre` component — inline code lands here
+            const isInline = !('data-language' in props);
+            if (isInline) {
+              return (
+                <code className="bg-gray-100 text-[#c7254e] px-1.5 py-0.5 rounded text-[0.8em] font-mono border border-gray-200">
+                  {children}
+                </code>
+              );
+            }
+            return <code className={className}>{children}</code>;
+          },
+          pre: ({ children }) => {
+            // Extract lang and code from the nested <code> element react-markdown produces
+            const child = React.Children.toArray(children)[0] as React.ReactElement<{ className?: string; children?: string }>;
+            const lang  = child?.props?.className?.replace('language-', '') ?? '';
+            const code  = String(child?.props?.children ?? '').trimEnd();
+            return <CodeBlock lang={lang} code={code} />;
+          },
+          // ── Lists ──────────────────────────────────────────────────────────
+          ul: ({ children }) => <ul className="space-y-1.5 my-2">{children}</ul>,
+          ol: ({ children }) => <ol className="space-y-1.5 my-2">{children}</ol>,
+          li: ({ children }) => (
+            <li className="flex items-start gap-2.5">
+              <span className="mt-[9px] w-1 h-1 rounded-full bg-gray-400 flex-shrink-0" />
+              <span>{children}</span>
+            </li>
+          ),
+          // ── Block elements ─────────────────────────────────────────────────
+          a: ({ href, children }) => (
+            <a href={href} target="_blank" rel="noopener noreferrer" className="text-violet-600 hover:underline">
+              {children}
+            </a>
+          ),
+          blockquote: ({ children }) => (
+            <blockquote className="border-l-2 border-gray-300 pl-3 text-gray-500 italic my-2">
+              {children}
+            </blockquote>
+          ),
+          // ── Tables ─────────────────────────────────────────────────────────
+          table: ({ children }) => (
+            <div className="overflow-x-auto my-3">
+              <table className="w-full text-[13px] border-collapse">{children}</table>
+            </div>
+          ),
+          th: ({ children }) => (
+            <th className="px-3 py-2 text-left font-semibold text-gray-700 border-b border-gray-200 bg-gray-50">
+              {children}
+            </th>
+          ),
+          td: ({ children }) => (
+            <td className="px-3 py-2 text-gray-600 border-b border-gray-100">{children}</td>
+          ),
+        }}
+      >
+        {content}
+      </ReactMarkdown>
       {isStreaming && (
         <span className="cursor-blink inline-block w-[2px] h-[1em] bg-gray-600 ml-0.5 align-middle" />
       )}

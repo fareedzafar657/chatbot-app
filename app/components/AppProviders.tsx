@@ -10,9 +10,8 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
   const restoreSession = useAuthStore((state) => state.restoreSession);
 
   useEffect(() => {
-    restoreSession();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    restoreSession().catch(() => {}); // non-critical: app renders unauthenticated if restoration fails
+  }, [restoreSession]);
 
   return (
     <ThemeProvider>

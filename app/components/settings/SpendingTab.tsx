@@ -2,30 +2,8 @@
 
 import { useState } from 'react';
 import { CreditCard, Download, Check, AlertCircle } from 'lucide-react';
-
-function Section({
-  title,
-  description,
-  children,
-}: {
-  title: string;
-  description?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="py-6 border-b border-gray-100 last:border-0">
-      <div className="flex gap-8">
-        <div className="w-[220px] flex-shrink-0">
-          <h3 className="text-[13px] font-semibold text-gray-900 mb-0.5">{title}</h3>
-          {description && (
-            <p className="text-[12px] text-gray-500 leading-relaxed">{description}</p>
-          )}
-        </div>
-        <div className="flex-1">{children}</div>
-      </div>
-    </div>
-  );
-}
+import { cn } from '@/lib/cn';
+import { Section } from './Section';
 
 const INVOICES = [
   { id: 'inv-1', date: 'May 1, 2026', amount: '$20.00', status: 'Upcoming', plan: 'Pro Plan' },
@@ -69,11 +47,10 @@ export function SpendingTab() {
           {PLANS.map((plan) => (
             <div
               key={plan.name}
-              className={`rounded-xl border p-4 transition-all relative ${
-                plan.current
-                  ? 'border-violet-300 bg-violet-50 shadow-sm'
-                  : 'border-gray-200 bg-white hover:border-gray-300'
-              }`}
+              className={cn(
+                'rounded-xl border p-4 transition-all relative',
+                plan.current ? 'border-violet-300 bg-violet-50 shadow-sm' : 'border-gray-200 bg-white hover:border-gray-300'
+              )}
             >
               {plan.current && (
                 <div className="absolute -top-2 left-1/2 -translate-x-1/2">
@@ -197,16 +174,14 @@ export function SpendingTab() {
             </div>
           </div>
 
-          <div
-            className={`flex items-start gap-3 p-3 rounded-xl border transition-all ${
-              alertEnabled ? 'border-amber-200 bg-amber-50' : 'border-gray-200 bg-gray-50'
-            }`}
-          >
-            <AlertCircle
-              className={`w-4 h-4 mt-0.5 flex-shrink-0 ${
-                alertEnabled ? 'text-amber-500' : 'text-gray-400'
-              }`}
-            />
+          <div className={cn(
+            'flex items-start gap-3 p-3 rounded-xl border transition-all',
+            alertEnabled ? 'border-amber-200 bg-amber-50' : 'border-gray-200 bg-gray-50'
+          )}>
+            <AlertCircle className={cn(
+              'w-4 h-4 mt-0.5 flex-shrink-0',
+              alertEnabled ? 'text-amber-500' : 'text-gray-400'
+            )} />
             <div className="flex-1">
               <div className="text-[13px] font-medium text-gray-800">Spending alert</div>
               <div className="text-[12px] text-gray-500">
@@ -215,15 +190,15 @@ export function SpendingTab() {
             </div>
             <button
               onClick={() => setAlertEnabled((p) => !p)}
-              className={`flex-shrink-0 relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+              className={cn(
+                'flex-shrink-0 relative inline-flex h-5 w-9 items-center rounded-full transition-colors',
                 alertEnabled ? 'bg-amber-500' : 'bg-gray-200'
-              }`}
+              )}
             >
-              <span
-                className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform ${
-                  alertEnabled ? 'translate-x-[18px]' : 'translate-x-[3px]'
-                }`}
-              />
+              <span className={cn(
+                'inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform',
+                alertEnabled ? 'translate-x-[18px]' : 'translate-x-[3px]'
+              )} />
             </button>
           </div>
         </div>
@@ -248,20 +223,22 @@ export function SpendingTab() {
               {INVOICES.map((inv, i) => (
                 <tr
                   key={inv.id}
-                  className={`border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors ${
+                  className={cn(
+                    'border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors',
                     i === 0 ? 'bg-violet-50/40' : ''
-                  }`}
+                  )}
                 >
                   <td className="px-4 py-3 text-[13px] text-gray-700">{inv.date}</td>
                   <td className="px-4 py-3 text-[13px] text-gray-700">{inv.plan}</td>
                   <td className="px-4 py-3 text-[13px] font-medium text-gray-900">{inv.amount}</td>
                   <td className="px-4 py-3">
                     <span
-                      className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium ${
+                      className={cn(
+                        'inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium',
                         inv.status === 'Paid'
                           ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
                           : 'bg-violet-50 text-violet-700 border border-violet-100'
-                      }`}
+                      )}
                     >
                       {inv.status === 'Paid' && <Check className="w-2.5 h-2.5 mr-1" />}
                       {inv.status}

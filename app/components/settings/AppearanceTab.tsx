@@ -1,27 +1,14 @@
 'use client';
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Moon, Sun, Check, Palette } from 'lucide-react';
 import { useTheme, THEME_PRESETS, generatePalette } from '@/app/context/ThemeContext';
-
-function Section({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
-  return (
-    <div className="py-6 border-b border-gray-100 last:border-0">
-      <div className="flex gap-8">
-        <div className="w-[220px] flex-shrink-0">
-          <h3 className="text-[13px] font-semibold text-gray-900 mb-0.5">{title}</h3>
-          {description && <p className="text-[12px] text-gray-500 leading-relaxed">{description}</p>}
-        </div>
-        <div className="flex-1">{children}</div>
-      </div>
-    </div>
-  );
-}
+import { cn } from '@/lib/cn';
+import { Section } from './Section';
 
 function ThemePreview({ accent }: { accent: string }) {
   return (
     <div className="rounded-xl border border-gray-200 overflow-hidden bg-white shadow-sm">
-      {/* Sidebar strip */}
       <div className="flex h-28">
         <div className="w-10 flex-shrink-0 bg-[#FAFAFA] border-r border-gray-100 flex flex-col items-center py-2 gap-2">
           <div className="w-5 h-5 rounded-md" style={{ background: accent }} />
@@ -29,15 +16,12 @@ function ThemePreview({ accent }: { accent: string }) {
           <div className="w-4 h-1 rounded bg-gray-200" />
           <div className="w-4 h-1 rounded bg-gray-200" />
         </div>
-        {/* Chat area */}
         <div className="flex-1 flex flex-col p-2 gap-1.5 justify-center">
-          {/* User message */}
           <div className="flex justify-end">
             <div className="bg-gray-100 rounded-xl px-2 py-1 max-w-[80%]">
               <div className="w-16 h-1.5 rounded bg-gray-300" />
             </div>
           </div>
-          {/* AI message */}
           <div className="flex gap-1.5 items-start">
             <div className="w-4 h-4 rounded-md flex-shrink-0" style={{ background: accent }} />
             <div className="flex-1 space-y-1">
@@ -46,7 +30,6 @@ function ThemePreview({ accent }: { accent: string }) {
               <div className="w-3/5 h-1.5 rounded bg-gray-200" />
             </div>
           </div>
-          {/* Input bar */}
           <div className="mt-1 border border-gray-200 rounded-lg px-2 py-1 flex items-center justify-between">
             <div className="w-20 h-1.5 rounded bg-gray-100" />
             <div className="w-4 h-4 rounded-md" style={{ background: accent }} />
@@ -85,9 +68,10 @@ export function AppearanceTab() {
         <div className="flex gap-3">
           <button
             onClick={() => isDark && toggleDark()}
-            className={`flex-1 flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
+            className={cn(
+              'flex-1 flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all',
               !isDark ? 'border-violet-400 bg-violet-50' : 'border-gray-200 bg-white hover:border-gray-300'
-            }`}
+            )}
           >
             <div className="w-10 h-10 rounded-full bg-white border border-gray-200 shadow-sm flex items-center justify-center">
               <Sun className="w-5 h-5 text-amber-500" />
@@ -101,9 +85,10 @@ export function AppearanceTab() {
 
           <button
             onClick={() => !isDark && toggleDark()}
-            className={`flex-1 flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
+            className={cn(
+              'flex-1 flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all',
               isDark ? 'border-violet-400 bg-violet-50' : 'border-gray-200 bg-white hover:border-gray-300'
-            }`}
+            )}
           >
             <div className="w-10 h-10 rounded-full bg-gray-900 border border-gray-700 shadow-sm flex items-center justify-center">
               <Moon className="w-5 h-5 text-blue-400" />
@@ -127,13 +112,11 @@ export function AppearanceTab() {
               <button
                 key={preset.id}
                 onClick={() => setPreset(preset.id)}
-                className={`relative flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all ${
-                  isActive
-                    ? 'border-gray-900 shadow-md'
-                    : 'border-gray-100 hover:border-gray-300'
-                }`}
+                className={cn(
+                  'relative flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all',
+                  isActive ? 'border-gray-900 shadow-md' : 'border-gray-100 hover:border-gray-300'
+                )}
               >
-                {/* Color swatch stack */}
                 <div className="flex gap-0.5">
                   {['100', '400', '600', '800'].map(shade => (
                     <div
@@ -162,7 +145,6 @@ export function AppearanceTab() {
       >
         <div className="space-y-4">
           <div className="flex items-center gap-3">
-            {/* Color picker */}
             <div className="relative">
               <input
                 type="color"
@@ -178,7 +160,6 @@ export function AppearanceTab() {
               />
             </div>
 
-            {/* Hex input */}
             <input
               type="text"
               value={localCustom}
@@ -209,26 +190,26 @@ export function AppearanceTab() {
           </div>
 
           {/* Generated palette preview */}
-          {localCustom && /^#[0-9A-Fa-f]{6}$/.test(localCustom) && (
-            <div>
-              <div className="text-[11px] font-medium text-gray-500 mb-2">Generated palette</div>
-              <div className="flex gap-1">
-                {['50', '100', '200', '300', '400', '500', '600', '700', '800', '900'].map(shade => {
-                  const p = generatePalette(localCustom);
-                  return (
+          {localCustom && /^#[0-9A-Fa-f]{6}$/.test(localCustom) && (() => {
+            const palette = generatePalette(localCustom);
+            return (
+              <div>
+                <div className="text-[11px] font-medium text-gray-500 mb-2">Generated palette</div>
+                <div className="flex gap-1">
+                  {['50', '100', '200', '300', '400', '500', '600', '700', '800', '900'].map(shade => (
                     <div key={shade} className="flex-1 text-center">
                       <div
                         className="w-full h-8 rounded-md mb-1"
-                        style={{ background: p[shade] }}
-                        title={p[shade]}
+                        style={{ background: palette[shade] }}
+                        title={palette[shade]}
                       />
                       <div className="text-[9px] text-gray-400 font-mono">{shade}</div>
                     </div>
-                  );
-                })}
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
         </div>
       </Section>
     </div>

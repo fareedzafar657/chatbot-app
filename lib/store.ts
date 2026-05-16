@@ -4,6 +4,8 @@ import { Session, Message, Branch } from './types';
 import { api } from './api';
 import { streamChat } from './stream';
 
+const GENERIC_ERROR = 'Something went wrong. Please try again.';
+
 function genTempId(): string {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
     return crypto.randomUUID();
@@ -42,9 +44,6 @@ interface ChatActions {
   renameSession(sessionId: string, title: string): Promise<void>;
   sendMessage(prompt: string): void;
   stopStreaming(): void;
-  setStreaming(streaming: boolean): void;
-  addMessage(sessionId: string, message: Message): void;
-  appendToLastMessage(sessionId: string, messageId: string, content: string): void;
   toggleBranchModal(show: boolean): void;
   forkBranch(selectedMsgIds: string[], label?: string): void;
   setActiveBranch(branchId: string): void;
@@ -56,6 +55,7 @@ interface ChatActions {
 export type ChatStore = ChatState & ChatActions;
 
 export const useChatStore = create<ChatStore>((set, get) => ({
+  // ── Initial state ─────────────────────────────────────────────────────────
   sessions: [],
   activeSessionId: null,
   activeBranchId: null,
@@ -73,14 +73,16 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   hasMoreSessions: false,
   sessionsCursor: null,
 
+  // ── Session management ────────────────────────────────────────────────────
+
   initSessions: async () => {
     set({ isLoadingSessions: true });
     try {
       const result = await api.listSessions();
       set({
         sessions: result.items,
-        hasMoreSessions: result.has_more,
-        sessionsCursor: result.next_cursor ?? null,
+        hasMoreSessions: result.hasMore,
+        sessionsCursor: result.nextCursor ?? null,
         isLoadingSessions: false,
       });
       const { activeSessionId } = get();
@@ -88,8 +90,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         // Always start with a new session, regardless of existing sessions
         get().newSession();
       }
-    } catch (err) {
-      set({ isLoadingSessions: false, errorMessage: (err as Error).message });
+    } catch {
+      set({ isLoadingSessions: false, errorMessage: GENERIC_ERROR });
       // Even on error, ensure there's a session to work with
       const { activeSessionId } = get();
       if (!activeSessionId) {
@@ -105,11 +107,11 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       const result = await api.listSessions(sessionsCursor);
       set({
         sessions: [...sessions, ...result.items],
-        hasMoreSessions: result.has_more,
-        sessionsCursor: result.next_cursor ?? null,
+        hasMoreSessions: result.hasMore,
+        sessionsCursor: result.nextCursor ?? null,
       });
-    } catch (err) {
-      set({ errorMessage: (err as Error).message });
+    } catch {
+      set({ errorMessage: GENERIC_ERROR });
     }
   },
 
@@ -136,6 +138,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     get().loadBranches(sessionId);
   },
 
+  // ── Message operations ────────────────────────────────────────────────────
+
   loadMessages: async (branchId, cursor?) => {
     set({ isLoadingMessages: true });
     try {
@@ -143,12 +147,12 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       set((state) => ({
         // Cursor-based pagination: prepend older messages at the top
         messages: cursor ? [...result.items, ...state.messages] : result.items,
-        hasMoreMessages: result.has_more,
-        messagesCursor: result.next_cursor ?? null,
+        hasMoreMessages: result.hasMore,
+        messagesCursor: result.nextCursor ?? null,
         isLoadingMessages: false,
       }));
-    } catch (err) {
-      set({ isLoadingMessages: false, errorMessage: (err as Error).message });
+    } catch {
+      set({ isLoadingMessages: false, errorMessage: GENERIC_ERROR });
     }
   },
 
@@ -157,6 +161,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     if (!messagesCursor || !activeBranchId) return;
     await get().loadMessages(activeBranchId, messagesCursor);
   },
+
+  // ── Branch operations ─────────────────────────────────────────────────────
 
   loadBranches: async (sessionId) => {
     try {
@@ -167,10 +173,76 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           s.sessionId === sessionId ? { ...s, branchCount: branches.length } : s
         ),
       }));
-    } catch (err) {
-      set({ errorMessage: (err as Error).message });
+    } catch {
+      set({ errorMessage: GENERIC_ERROR });
     }
   },
+
+  forkBranch: async (selectedMsgIds, label?) => {
+    const { activeSessionId, activeBranchId } = get();
+    if (!activeSessionId || !activeBranchId) return;
+
+    try {
+      const newBranch = await api.forkBranch({
+        session_id: activeSessionId,
+        parent_branch_id: activeBranchId,
+        selected_msg_ids: selectedMsgIds,
+        label,
+      });
+
+      await api.updateSession(activeSessionId, { active_branch_id: newBranch.branchId });
+
+      set((state) => ({
+        branches: [...state.branches, newBranch],
+        activeBranchId: newBranch.branchId,
+        messages: state.messages.filter(m => selectedMsgIds.includes(m.msgId)),
+        showBranchModal: false,
+        sessions: state.sessions.map((s) =>
+          s.sessionId === activeSessionId
+            ? { ...s, activeBranchId: newBranch.branchId, branchCount: state.branches.length + 1 }
+            : s
+        ),
+      }));
+    } catch {
+      set({ errorMessage: GENERIC_ERROR });
+    }
+  },
+
+  setActiveBranch: async (branchId) => {
+    const { activeSessionId } = get();
+    // Clear messages immediately so the skeleton shows while the new branch loads
+    set({ activeBranchId: branchId, messages: [], isLoadingMessages: true });
+
+    if (activeSessionId) {
+      try {
+        await api.updateSession(activeSessionId, { active_branch_id: branchId });
+        set((state) => ({
+          sessions: state.sessions.map((s) =>
+            s.sessionId === activeSessionId ? { ...s, activeBranchId: branchId } : s
+          ),
+        }));
+      } catch {
+        set({ errorMessage: GENERIC_ERROR });
+      }
+    }
+
+    await get().loadMessages(branchId);
+  },
+
+  // AI Pick — not yet implemented.
+  // Idea: POST all messages from the active branch to a dedicated API endpoint,
+  // optionally with a user-provided preference string (e.g. "focus on the auth discussion").
+  // The AI returns the message IDs it considers most relevant for the branch context.
+  // Needs: a new Lambda/API route, prompt design, and a preference input UI in MessageSelector.
+  autoSelectMessages: () => [],
+
+  // Cherry Pick — not yet implemented.
+  // Idea: let the user browse all branches in the session, select individual messages
+  // from any branch (not just the active one), and append them to the current active branch —
+  // analogous to `git cherry-pick`. Needs a backend API + a branch/message browser UI.
+  cherryPickBranch: () => {},
+
+  // ── Session CRUD ──────────────────────────────────────────────────────────
 
   newSession: () => {
     const { abortController } = get();
@@ -189,6 +261,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   },
 
   deleteSession: async (sessionId) => {
+    const snapshot = get().sessions;
+
     // Optimistic removal
     set((state) => {
       const remaining = state.sessions.filter((s) => s.sessionId !== sessionId);
@@ -216,12 +290,15 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
     try {
       await api.deleteSession(sessionId);
-    } catch (err) {
-      set({ errorMessage: (err as Error).message });
+    } catch {
+      // Rollback optimistic removal
+      set({ sessions: snapshot, errorMessage: GENERIC_ERROR });
     }
   },
 
   renameSession: async (sessionId, title) => {
+    const snapshot = get().sessions;
+
     set((state) => ({
       sessions: state.sessions.map((s) =>
         s.sessionId === sessionId ? { ...s, title } : s
@@ -230,10 +307,12 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
     try {
       await api.updateSession(sessionId, { title });
-    } catch (err) {
-      set({ errorMessage: (err as Error).message });
+    } catch {
+      set({ sessions: snapshot, errorMessage: GENERIC_ERROR });
     }
   },
+
+  // ── Stream handling ───────────────────────────────────────────────────────
 
   sendMessage: async (prompt) => {
     const { activeSessionId, activeBranchId, isStreaming } = get();
@@ -328,17 +407,17 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             set((state) => ({
               messages: state.messages.map((m) =>
                 m.msgId === tempAiMsgId
-                  ? { ...m, content: m.content + text }
+                  ? { ...m, content: (m.content ?? '') + text }
                   : m
               ),
             }));
           },
 
-          onDone: (msgId, msgState) => {
+          onDone: (msgId, msgState, inputTokens, outputTokens) => {
             set((state) => ({
               messages: state.messages.map((m) =>
                 m.msgId === tempAiMsgId
-                  ? { ...m, msgId, state: msgState as Message['state'], branchId: realBranchId }
+                  ? { ...m, msgId, state: msgState, branchId: realBranchId, inputTokens, outputTokens }
                   : m
               ),
               isStreaming: false,
@@ -356,11 +435,11 @@ export const useChatStore = create<ChatStore>((set, get) => ({
                     branchCount: state.sessions.find((ss) => ss.sessionId === s.sessionId)
                       ?.branchCount,
                   })),
-                  hasMoreSessions: result.has_more,
-                  sessionsCursor: result.next_cursor ?? null,
+                  hasMoreSessions: result.hasMore,
+                  sessionsCursor: result.nextCursor ?? null,
                 }));
               })
-              .catch(() => {});
+              .catch(() => useChatStore.setState({ errorMessage: GENERIC_ERROR }));
 
             // Refresh branches for updated count
             if (realSessionId) {
@@ -376,7 +455,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
                     ),
                   }));
                 })
-                .catch(() => {});
+                .catch(() => useChatStore.setState({ errorMessage: GENERIC_ERROR }));
             }
           },
 
@@ -403,15 +482,15 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           isStreaming: false,
           streamingMessageId: null,
           abortController: null,
-          errorMessage: (err as Error).message,
+          errorMessage: GENERIC_ERROR,
         }));
       }
     }
   },
 
   stopStreaming: async () => {
-    const { abortController, messages } = get();
-    const streamingMsg = [...messages].reverse().find((m) => m.role === 'assistant');
+    const { abortController, messages, streamingMessageId } = get();
+    const streamingMsg = messages.find((m) => m.msgId === streamingMessageId);
 
     if (abortController) abortController.abort();
     set({ isStreaming: false, streamingMessageId: null, abortController: null });
@@ -430,125 +509,14 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     }
   },
 
-  // Legacy stubs — kept so no component imports break
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  setStreaming: (_s: boolean) => {},
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  addMessage: (_sid: string, _msg: Message) => {},
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  appendToLastMessage: (_sid: string, _mid: string, _c: string) => {},
+  // ── UI state ──────────────────────────────────────────────────────────────
 
   toggleBranchModal: (show) => set({ showBranchModal: show }),
-
-  forkBranch: async (selectedMsgIds, label?) => {
-    const { activeSessionId, activeBranchId } = get();
-    if (!activeSessionId || !activeBranchId) return;
-
-    try {
-      const newBranch = await api.forkBranch({
-        session_id: activeSessionId,
-        parent_branch_id: activeBranchId,
-        selected_msg_ids: selectedMsgIds,
-        label,
-      });
-
-      await api.updateSession(activeSessionId, { active_branch_id: newBranch.branchId });
-
-      set((state) => ({
-        branches: [...state.branches, newBranch],
-        activeBranchId: newBranch.branchId,
-        messages: state.messages.filter(m => selectedMsgIds.includes(m.msgId)),
-        showBranchModal: false,
-        sessions: state.sessions.map((s) =>
-          s.sessionId === activeSessionId
-            ? { ...s, activeBranchId: newBranch.branchId, branchCount: state.branches.length + 1 }
-            : s
-        ),
-      }));
-    } catch (err) {
-      set({ errorMessage: (err as Error).message });
-    }
-  },
-
-  setActiveBranch: async (branchId) => {
-    const { activeSessionId } = get();
-    set({ activeBranchId: branchId });
-
-    if (activeSessionId) {
-      try {
-        await api.updateSession(activeSessionId, { active_branch_id: branchId });
-        set((state) => ({
-          sessions: state.sessions.map((s) =>
-            s.sessionId === activeSessionId ? { ...s, activeBranchId: branchId } : s
-          ),
-        }));
-      } catch (err) {
-        set({ errorMessage: (err as Error).message });
-      }
-    }
-
-    await get().loadMessages(branchId);
-  },
-
-  autoSelectMessages: () => {
-    const { messages } = get();
-    const selected = new Set<string>();
-
-    const first2 = messages.slice(0, 2).map((m) => m.msgId);
-    first2.forEach((id) => selected.add(id));
-
-    const last4 = messages.slice(-4).map((m) => m.msgId);
-    last4.forEach((id) => selected.add(id));
-
-    messages.forEach((m) => {
-      if (m.role === 'assistant' && m.content.length > 400) {
-        selected.add(m.msgId);
-      }
-      if (m.role === 'user' && m.content.includes('?')) {
-        selected.add(m.msgId);
-      }
-    });
-
-    return Array.from(selected);
-  },
-
-  cherryPickBranch: (selectedMsgIds, branchName) => {
-    const { activeSessionId, activeBranchId, branches, messages } = get();
-    if (!activeSessionId || !activeBranchId) return;
-
-    const activeBranch = branches.find((b) => b.branchId === activeBranchId);
-    if (!activeBranch) return;
-
-    const newBranchId = genTempId();
-    const now = new Date().toISOString();
-
-    const newBranch: Branch = {
-      branchId: newBranchId,
-      sessionId: activeSessionId,
-      parentBranchId: activeBranchId,
-      parentMsgId: selectedMsgIds[0],
-      selectedMsgIds,
-      label: branchName,
-      description: `Cherry-picked from ${activeBranch.label}`,
-      createdAt: now,
-    };
-
-    const filteredMessages = messages.filter((m) => selectedMsgIds.includes(m.msgId));
-
-    set((state) => ({
-      branches: [...state.branches, newBranch],
-      activeBranchId: newBranchId,
-      messages: filteredMessages,
-      showBranchModal: false,
-    }));
-  },
 
   dismissError: () => set({ errorMessage: null }),
 }));
 
-// ---------------------------------------------------------------------------
-// Selector hooks — same names as before so no component changes needed
-// ---------------------------------------------------------------------------
+// ── Selector hooks ────────────────────────────────────────────────────────────
 
 export const useActiveSession = () =>
   useChatStore((state) =>

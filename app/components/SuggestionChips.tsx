@@ -1,5 +1,3 @@
-'use client';
-
 const SUGGESTIONS = [
   {
     title: 'Set up a React project',

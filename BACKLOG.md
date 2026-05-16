@@ -1,0 +1,163 @@
+# Backlog — Hardcoded Data, Unimplemented Features & Backend Gaps
+
+This file tracks everything that is currently stubbed, hardcoded, disabled, or dependent on a backend change that hasn't happened yet.
+Update this file whenever a feature is implemented or a backend contract changes.
+
+---
+
+## Frontend Features — Disabled / Not Yet Implemented
+
+### AI Pick
+**Status:** Disabled (button visible but non-functional)
+**Location:** `app/components/BranchModal/MessageSelector.tsx`, `lib/store.ts:autoSelectMessages`
+**Idea:** When clicked, POST all messages from the active branch to a dedicated API endpoint. The AI selects the most relevant messages, optionally guided by a user preference string (e.g. "focus on the auth discussion"). Returns a list of message IDs to pre-select in the branch modal.
+**Needs:**
+- New Lambda / API route (`POST /branches/ai-pick` or similar)
+- Prompt design for the selection logic
+- Optional preference text input in `MessageSelector`
+
+---
+
+### Cherry Pick
+**Status:** Disabled (button visible but non-functional)
+**Location:** `app/components/BranchModal/types.ts`, `lib/store.ts:cherryPickBranch`
+**Idea:** Open a sub-view inside the branch modal showing all branches and their messages. The user selects individual messages from any branch (not just the active one) to append to their current active branch — analogous to `git cherry-pick`.
+**Needs:**
+- New backend API to append messages from one branch to another
+- Branch + message browser UI inside the modal (new panel or page within modal)
+
+---
+
+### Session Title Generation
+**Status:** Hardcoded fallback — title defaults to the first 45 characters of the user's first message (set client-side in `lib/store.ts:onMetadata`)
+**Location:** `lib/store.ts` (~line 303), `app/components/Sidebar.tsx` (`session.title ?? 'New Conversation'`)
+**Idea:** After the first AI response is complete, call an API that generates a short, descriptive title for the session using the first user message and AI reply as context.
+**Needs:**
+- New Lambda / API route (`POST /sessions/:id/generate-title` or via streaming metadata)
+- Update `onDone` in `streamChat` to trigger title generation
+- Update session in store once title returns
+
+---
+
+### General Settings — Save Changes
+**Status:** Disabled — Save Changes button is non-functional pending a user profile API
+**Location:** `app/components/settings/GeneralTab.tsx`
+**Note:** Name updates could go via Cognito (`updateName` exists in `authStore`), but bio and timezone have no API at all. Re-enable the button once a unified profile update endpoint exists.
+**Needs:** `PATCH /users/me` (or equivalent) returning updated name, bio, and timezone; wire into `handleSave`
+
+---
+
+### Export CSV (Usage Tab)
+**Status:** Disabled — Export CSV button has no handler
+**Location:** `app/components/settings/UsageTab.tsx` (Model Breakdown section)
+**Needs:** `GET /usage/export?format=csv` endpoint or client-side CSV generation from `stats.dailyUsage`
+
+---
+
+### Spending Tab — All Data Hardcoded
+**Status:** Hardcoded — all billing data is static; no API is wired up
+**Location:** `app/components/settings/SpendingTab.tsx`
+**Breakdown:**
+- `INVOICES` — hardcoded invoice list; needs `GET /billing/invoices`
+- `PLANS` — hardcoded plan definitions with `current` flag baked in; `current` should derive from `user.plan` via `useAuthStore`; plan catalogue should come from `GET /billing/plans` or config
+- `currentUsage` (`18.4`) — hardcoded spend figure; needs `GET /billing/usage/current-month`
+- Payment method (`Visa ending in 4242`, `Expires 08/2028`) — hardcoded; needs `GET /billing/payment-methods`
+- Renewal date (`June 1, 2026`) — hardcoded; should come from subscription API
+**Needs:** Billing API endpoints; wire into component on mount
+
+---
+
+### Spending Tab — Non-functional Buttons
+**Status:** Stubbed — buttons present but have no handlers
+**Location:** `app/components/settings/SpendingTab.tsx`
+**Breakdown:**
+- `Cancel plan` — needs `DELETE /billing/subscription` + confirmation dialog
+- `Update` (payment method) — needs payment method update flow (Stripe hosted page or custom)
+- `Add payment method` — same as above
+- `Download` (invoice) — needs `GET /billing/invoices/:id/pdf`
+- `Upgrade` / `Downgrade` plan buttons — needs `POST /billing/subscription` with new plan ID
+
+---
+
+### Theme Persistence
+**Status:** Local-only — theme (accent color, dark mode) is stored in local state/context only, not persisted to the database
+**Location:** `app/context/ThemeContext.tsx`, `app/components/settings/AppearanceTab.tsx`
+**Idea:** Save the user's selected theme (preset ID or custom hex, dark mode toggle) to the backend on change. Load it on login so the theme is consistent across devices.
+**Needs:** `theme` field on the user profile API (`PATCH /users/me`); load on auth, apply before first render to avoid flash
+
+---
+
+### Chat Background Patterns
+**Status:** Not implemented — chat area has a plain white background
+**Location:** `app/components/` (chat view)
+**Idea:** Allow users to select a background pattern for the chat area (similar to WhatsApp/Facebook Messenger) — subtle geometric or texture patterns that complement the accent color. Store the selected pattern ID alongside theme data in the database.
+**Needs:** Pattern assets or CSS pattern definitions; pattern picker UI in AppearanceTab; pattern ID field on user profile API
+
+---
+
+### User Bio (General Settings)
+**Status:** Hardcoded — `bio` state initialises as `''` and is never loaded from or saved to the API
+**Location:** `app/components/settings/GeneralTab.tsx` (`bio` state, textarea)
+**Needs:** `bio` field on the user profile API response; load on mount, save via the profile update endpoint above
+
+---
+
+### Timezone (General Settings)
+**Status:** Hardcoded — timezone select is non-functional (`onChange={() => {}}`, value fixed to `'UTC-8 (Pacific)'`)
+**Location:** `app/components/settings/GeneralTab.tsx` (Timezone `Select`)
+**Needs:** Timezone field on the user profile API; persist selection on save
+
+---
+
+### Suggestion Chips
+**Status:** Hardcoded — three static suggestions shown on the empty chat screen
+**Location:** `app/components/SuggestionChips.tsx` (`SUGGESTIONS` constant)
+**Idea:** Read the most recent session from the sidebar (title + last few messages) and POST to an API that returns contextually relevant follow-up suggestions for the user.
+**Needs:**
+- New API route (`POST /suggestions` or similar) that accepts recent session context
+- `SuggestionChips` updated to accept `suggestions: { title: string; prompt: string }[]` as a prop
+- Parent component fetches suggestions when the empty state is shown (lazy, non-blocking)
+
+---
+
+## Backend Gaps — API Changes Required
+
+### Branch Count in Session List
+**Status:** `branchCount` on `Session` is local-only — populated only after `loadBranches()` is called when the user opens a session. Sidebar never shows branch counts on initial load.
+**Location:** `lib/types.ts:Session.branchCount`, `app/components/Sidebar.tsx` (top-of-file comment)
+**Fix:** Include `branch_count` in the `GET /sessions` list response. Wire it into `PaginatedSessions` → `Session` on the frontend once available.
+
+---
+
+## Hardcoded / Local-Only Data
+
+### User Profile Fallbacks in Sidebar
+**Status:** Sidebar shows `'JD'` / `'John Doe'` / `'john@example.com'` if `user` fields are missing
+**Location:** `app/components/Sidebar.tsx` lines ~282–289
+**Fix:** Remove fake fallbacks once auth is confirmed to always populate `user.name`, `user.initials`, and `user.email`. Guard at the render level instead (don't render the profile row if `user` is null).
+
+### `Branch.description`
+**Status:** Local-only field, not returned by the API
+**Location:** `lib/types.ts:Branch.description`
+**Fix:** Add `description` to the branch schema and return it from `GET /branches/session/:id` if the field is needed in the UI.
+
+### `Branch.messageCount`
+**Status:** Local-only field, not returned by the API. Currently `selectedMsgIds.length` is used as a proxy.
+**Location:** `lib/types.ts:Branch.messageCount`
+**Fix:** Either remove the field (since `selectedMsgIds.length` is already available) or have the backend return an accurate live count.
+
+---
+
+## Auth Flows — Not Yet Wired
+
+### Google OAuth
+**Status:** Not implemented
+**Location:** `app/login/page.tsx` (button present, no handler)
+
+### GitHub OAuth
+**Status:** Not implemented
+**Location:** `app/login/page.tsx` (button present, no handler)
+
+### Forgot Password
+**Status:** Not implemented
+**Location:** `app/login/page.tsx` (link present, no handler)
