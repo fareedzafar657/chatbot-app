@@ -2,6 +2,7 @@
 
 import { GitBranch } from 'lucide-react';
 import { useChatStore, useActiveSession, useActiveBranch, useActiveMessages } from '@/lib/store';
+import { cn } from '@/lib/cn';
 import { MessageList } from './MessageList';
 import { MessageInput } from './MessageInput';
 
@@ -57,11 +58,12 @@ export function ChatWindow() {
           <button
             onClick={() => toggleBranchModal(true)}
             disabled={!hasMessages}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all ${
-              hasMessages
-                ? 'text-gray-600 hover:bg-gray-100 hover:text-gray-800 border border-gray-200'
-                : 'text-gray-300 border border-gray-100 cursor-not-allowed'
-            }`}
+            className={cn(
+            'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all border',
+            hasMessages
+              ? 'text-gray-600 hover:bg-gray-100 hover:text-gray-800 border-gray-200'
+              : 'text-gray-300 border-gray-100 cursor-not-allowed'
+          )}
           >
             <GitBranch className="w-3.5 h-3.5" />
             Branches

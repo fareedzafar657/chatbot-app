@@ -3,6 +3,7 @@
 import { Sparkles, User, Check } from 'lucide-react';
 import { Message } from '@/lib/types';
 import { KaiLogo } from '../KaiLogo';
+import { cn } from '@/lib/cn';
 
 function truncate(str: string | null, max: number): string {
   if (!str) return '';
@@ -76,21 +77,19 @@ export function MessageSelector({
               <button
                 key={msg.msgId}
                 onClick={() => onToggle(msg.msgId)}
-                className={`w-full text-left flex items-start gap-2.5 p-2.5 rounded-lg transition-all duration-100 group ${
-                  isInvalidFirst
-                    ? 'bg-red-50 border border-red-200'
-                    : isSelected
-                    ? 'bg-violet-50 border border-violet-200'
-                    : 'bg-gray-50 border border-transparent hover:border-gray-200 hover:bg-gray-100'
-                }`}
+                className={cn(
+                'w-full text-left flex items-start gap-2.5 p-2.5 rounded-lg transition-all duration-100 group border',
+                isInvalidFirst  ? 'bg-red-50 border-red-200'
+                : isSelected    ? 'bg-violet-50 border-violet-200'
+                                : 'bg-gray-50 border-transparent hover:border-gray-200 hover:bg-gray-100'
+              )}
               >
-                <div className={`flex-shrink-0 w-4 h-4 mt-0.5 rounded border flex items-center justify-center transition-all ${
-                  isInvalidFirst
-                    ? 'bg-red-600 border-red-600'
-                    : isSelected
-                    ? 'bg-violet-600 border-violet-600'
-                    : 'bg-white border-gray-300 group-hover:border-gray-400'
-                }`}>
+                <div className={cn(
+                  'flex-shrink-0 w-4 h-4 mt-0.5 rounded border flex items-center justify-center transition-all',
+                  isInvalidFirst  ? 'bg-red-600 border-red-600'
+                  : isSelected    ? 'bg-violet-600 border-violet-600'
+                                  : 'bg-white border-gray-300 group-hover:border-gray-400'
+                )}>
                   {isSelected && <Check className="w-2.5 h-2.5 text-white" />}
                 </div>
 
@@ -105,7 +104,7 @@ export function MessageSelector({
                 )}
 
                 <div className="flex-1 min-w-0">
-                  <div className={`text-[11px] font-semibold mb-0.5 ${isUser ? 'text-gray-700' : 'text-violet-700'}`}>
+                  <div className={cn('text-[11px] font-semibold mb-0.5', isUser ? 'text-gray-700' : 'text-violet-700')}>
                     {isUser ? 'You' : 'K-AI'} · #{i + 1}
                   </div>
                   <div className="text-[12px] text-gray-600 leading-snug line-clamp-2">

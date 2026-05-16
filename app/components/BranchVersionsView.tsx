@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { ArrowUpDown, GitBranch, Check } from 'lucide-react';
 import { Branch } from '@/lib/types';
+import { cn } from '@/lib/cn';
 
 type SortKey = 'name' | 'created' | 'messages';
 
@@ -36,7 +37,7 @@ const SortBtn = ({
     className="flex items-center gap-1 text-[11px] font-semibold text-gray-500 uppercase tracking-wide hover:text-gray-800 transition-colors"
   >
     {label}
-    <ArrowUpDown className={`w-3 h-3 ${active ? 'text-violet-500' : 'text-gray-300'}`} />
+    <ArrowUpDown className={cn('w-3 h-3', active ? 'text-violet-500' : 'text-gray-300')} />
   </button>
 );
 
@@ -95,15 +96,16 @@ export function BranchVersionsView({ branches, activeBranchId, onSwitchBranch }:
                 <tr
                   key={branch.branchId}
                   onClick={() => onSwitchBranch(branch.branchId)}
-                  className={`border-b border-gray-50 last:border-0 transition-colors cursor-pointer ${
+                  className={cn(
+                    'border-b border-gray-50 last:border-0 transition-colors cursor-pointer',
                     isActive ? 'bg-violet-50' : 'bg-white hover:bg-gray-50'
-                  }`}
+                  )}
                 >
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
-                      <div className={`w-2 h-2 rounded-full flex-shrink-0 ${isActive ? 'bg-violet-500' : 'bg-gray-300'}`} />
+                      <div className={cn('w-2 h-2 rounded-full flex-shrink-0', isActive ? 'bg-violet-500' : 'bg-gray-300')} />
                       <div>
-                        <div className={`text-[13px] font-medium ${isActive ? 'text-violet-700' : 'text-gray-800'}`}>
+                        <div className={cn('text-[13px] font-medium', isActive ? 'text-violet-700' : 'text-gray-800')}>
                           {branch.label}
                         </div>
                         {branch.description && (

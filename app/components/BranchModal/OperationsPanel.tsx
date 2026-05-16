@@ -1,6 +1,7 @@
 'use client';
 
 import { Operation, OP_BUTTONS } from './types';
+import { cn } from '@/lib/cn';
 
 interface OperationsPanelProps {
   operation: Operation;
@@ -33,7 +34,7 @@ export function OperationsPanel({
               onClick={() => { if (!disabled) onStart(op); }}
               disabled={disabled}
               title={disabled ? 'Not yet implemented' : undefined}
-              className={`flex flex-col items-start gap-0.5 p-2.5 rounded-xl border text-left transition-all ${colorClass} ${disabled ? 'cursor-not-allowed opacity-60' : ''}`}
+              className={cn('flex flex-col items-start gap-0.5 p-2.5 rounded-xl border text-left transition-all', colorClass, disabled && 'cursor-not-allowed opacity-60')}
             >
               <div className="flex items-center gap-1.5">
                 <Icon className="w-3.5 h-3.5" />
@@ -66,9 +67,10 @@ export function OperationsPanel({
           <button
             onClick={onExecute}
             disabled={!canExecute}
-            className={`w-full py-2 rounded-xl text-[13px] font-medium transition-all ${
+            className={cn(
+              'w-full py-2 rounded-xl text-[13px] font-medium transition-all',
               canExecute ? 'bg-[#18181B] hover:bg-black text-white shadow-sm' : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-            }`}
+            )}
           >
             Confirm Fork
           </button>

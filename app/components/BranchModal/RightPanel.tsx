@@ -5,6 +5,7 @@ import { Branch } from '@/lib/types';
 import { BranchTree } from '../BranchTree';
 import { BranchVersionsView } from '../BranchVersionsView';
 import { RightTab, RIGHT_TABS } from './types';
+import { cn } from '@/lib/cn';
 
 const TAB_ICONS: Record<RightTab, React.ElementType> = {
   tree:     GitBranch,
@@ -35,11 +36,10 @@ export function RightPanel({
             <button
               key={id}
               onClick={() => onTabChange(id)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all ${
-                activeTab === id
-                  ? 'bg-gray-100 text-gray-900'
-                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-              }`}
+              className={cn(
+                'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all',
+                activeTab === id ? 'bg-gray-100 text-gray-900' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+              )}
             >
               <Icon className="w-3.5 h-3.5" />
               {label}
