@@ -38,6 +38,7 @@ next-env.d.ts
 # graphify
 /graphify-out
 .graphify_python
+*graphify*
 
 # Claude
 .claude

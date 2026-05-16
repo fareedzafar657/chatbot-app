@@ -10,8 +10,6 @@ import {
 import { cn } from "@/lib/cn";
 import { MessageList } from "./MessageList";
 import { MessageInput } from "./MessageInput";
-import { EmptyState } from "./EmptyState";
-
 export function ChatWindow() {
   const toggleBranchModal = useChatStore((s) => s.toggleBranchModal);
   const isStreaming = useChatStore((s) => s.isStreaming);
@@ -26,7 +24,7 @@ export function ChatWindow() {
   const activeMessages = useActiveMessages();
 
   const title = activeSession?.title ?? "New Conversation";
-  const hasMessages = activeMessages.length > 0;
+  const hasMessages = activeMessages.length > 0; // controls branch button
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-white justify-between">
@@ -82,17 +80,13 @@ export function ChatWindow() {
       </div>
 
       <div className="overflow-y-scroll py-4">
-        {hasMessages || isLoadingMessages ? (
-          <MessageList
-            messages={activeMessages}
-            streamingMessageId={streamingMessageId}
-            hasMoreMessages={hasMoreMessages}
-            isLoadingMessages={isLoadingMessages}
-            onLoadMore={loadMoreMessages}
-          />
-        ) : (
-          <EmptyState />
-        )}
+        <MessageList
+          messages={activeMessages}
+          streamingMessageId={streamingMessageId}
+          hasMoreMessages={hasMoreMessages}
+          isLoadingMessages={isLoadingMessages}
+          onLoadMore={loadMoreMessages}
+        />
       </div>
       <MessageInput />
     </div>

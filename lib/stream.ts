@@ -45,7 +45,8 @@ export async function streamChat(
     });
   } catch (err) {
     if ((err as Error).name === 'AbortError') return;
-    callbacks.onError((err as Error).message);
+    console.error('[stream] fetch failed', err);
+    callbacks.onError('Request failed. Please try again.');
     return;
   }
 

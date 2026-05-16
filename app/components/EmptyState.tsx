@@ -1,18 +1,17 @@
 'use client';
 
-import { useChatStore } from '@/lib/store';
 import { SuggestionChips } from './SuggestionChips';
 import { KaiLogo } from './KaiLogo';
 
-export function EmptyState() {
-  const sendMessage = useChatStore((state) => state.sendMessage);
-
+export function EmptyState({ onSelect }: { readonly onSelect: (prompt: string) => void }) {
   return (
     <div className="flex-1 flex flex-col items-center justify-center min-h-0 px-6 text-center overflow-y-auto">
+      {/* Logo */}
       <div className="mb-6">
         <KaiLogo size={56} />
       </div>
 
+      {/* Heading */}
       <h2 className="text-[22px] font-semibold text-gray-900 mb-1">
         Hello, I&apos;m K-AI
       </h2>
@@ -21,7 +20,8 @@ export function EmptyState() {
         Ask me anything — from code questions to concept explanations. I&apos;m here to help.
       </p>
 
-      <SuggestionChips onSelect={sendMessage} />
+      {/* Suggestions */}
+      <SuggestionChips onSelect={onSelect} />
     </div>
   );
 }

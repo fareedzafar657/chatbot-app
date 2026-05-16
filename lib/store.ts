@@ -63,7 +63,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   branches: [],
   isStreaming: false,
   streamingMessageId: null,
-  isLoadingSessions: false,
+  isLoadingSessions: true,
   isLoadingMessages: false,
   showBranchModal: false,
   hasMoreMessages: false,
@@ -85,18 +85,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         sessionsCursor: result.nextCursor ?? null,
         isLoadingSessions: false,
       });
-      const { activeSessionId } = get();
-      if (!activeSessionId) {
-        // Always start with a new session, regardless of existing sessions
-        get().newSession();
-      }
     } catch {
       set({ isLoadingSessions: false, errorMessage: GENERIC_ERROR });
-      // Even on error, ensure there's a session to work with
-      const { activeSessionId } = get();
-      if (!activeSessionId) {
-        get().newSession();
-      }
     }
   },
 
@@ -132,6 +122,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       abortController: null,
       hasMoreMessages: false,
       messagesCursor: null,
+      isLoadingMessages: true,
     });
 
     get().loadMessages(session.activeBranchId);
@@ -144,6 +135,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     set({ isLoadingMessages: true });
     try {
       const result = await api.listMessages(branchId, cursor);
+      if (get().activeBranchId !== branchId) return;
       set((state) => ({
         // Cursor-based pagination: prepend older messages at the top
         messages: cursor ? [...result.items, ...state.messages] : result.items,
@@ -152,6 +144,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         isLoadingMessages: false,
       }));
     } catch {
+      if (get().activeBranchId !== branchId) return;
       set({ isLoadingMessages: false, errorMessage: GENERIC_ERROR });
     }
   },
@@ -263,30 +256,19 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   deleteSession: async (sessionId) => {
     const snapshot = get().sessions;
 
-    // Optimistic removal
     set((state) => {
       const remaining = state.sessions.filter((s) => s.sessionId !== sessionId);
       const wasActive = state.activeSessionId === sessionId;
       return {
         sessions: remaining,
         ...(wasActive && {
-          activeSessionId: remaining[0]?.sessionId ?? null,
-          activeBranchId: remaining[0]?.activeBranchId ?? null,
+          activeSessionId: null,
+          activeBranchId: null,
           messages: [],
           branches: [],
         }),
       };
     });
-
-    // Load the new active session's data if we switched
-    const { activeSessionId } = get();
-    if (activeSessionId && activeSessionId !== sessionId) {
-      const session = get().sessions.find((s) => s.sessionId === activeSessionId);
-      if (session) {
-        get().loadMessages(session.activeBranchId);
-        get().loadBranches(activeSessionId);
-      }
-    }
 
     try {
       await api.deleteSession(sessionId);
@@ -314,7 +296,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
   // ── Stream handling ───────────────────────────────────────────────────────
 
-  sendMessage: async (prompt) => {
+  sendMessage: async (prompt: string) => {
     const { activeSessionId, activeBranchId, isStreaming } = get();
     if (isStreaming || !activeSessionId) return;
 
@@ -363,8 +345,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           onMetadata: (sId, bId) => {
             realSessionId = sId;
             realBranchId = bId;
+            const isNewSession = get().activeSessionId !== sId;
             set((state) => {
-              const isNewSession = state.activeSessionId !== sId;
               const updatedMessages = state.messages.map((m) => ({
                 ...m,
                 sessionId: sId,

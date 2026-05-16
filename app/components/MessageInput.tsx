@@ -6,12 +6,12 @@ import { useChatStore, useActiveMessages } from '@/lib/store';
 import { cn } from '@/lib/cn';
 
 export function MessageInput() {
-  const sendMessage      = useChatStore((s) => s.sendMessage);
-  const stopStreaming    = useChatStore((s) => s.stopStreaming);
+  const sendMessage       = useChatStore((s) => s.sendMessage);
+  const stopStreaming      = useChatStore((s) => s.stopStreaming);
   const toggleBranchModal = useChatStore((s) => s.toggleBranchModal);
-  const isStreaming      = useChatStore((s) => s.isStreaming);
-  const activeSessionId  = useChatStore((s) => s.activeSessionId);
-  const activeMessages   = useActiveMessages();
+  const isStreaming        = useChatStore((s) => s.isStreaming);
+  const activeSessionId   = useChatStore((s) => s.activeSessionId);
+  const activeMessages    = useActiveMessages();
 
   const [value, setValue] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -29,9 +29,7 @@ export function MessageInput() {
     if (!trimmed || isStreaming || !activeSessionId) return;
     sendMessage(trimmed);
     setValue('');
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-    }
+    if (textareaRef.current) textareaRef.current.style.height = 'auto';
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -53,6 +51,7 @@ export function MessageInput() {
             isStreaming ? 'opacity-80' : 'focus-within:border-gray-300 focus-within:shadow-sm'
           )}
         >
+          {/* Branch button */}
           <button
             onClick={() => toggleBranchModal(true)}
             disabled={!hasBranches}
@@ -67,6 +66,7 @@ export function MessageInput() {
             <GitBranch className="w-4 h-4" />
           </button>
 
+          {/* Input */}
           <textarea
             ref={textareaRef}
             value={value}
@@ -78,6 +78,7 @@ export function MessageInput() {
             className="flex-1 bg-transparent text-[14px] text-gray-800 placeholder-gray-400 outline-none resize-none leading-relaxed py-0.5 min-h-[24px] max-h-[200px] disabled:cursor-not-allowed"
           />
 
+          {/* Send / Stop */}
           {isStreaming ? (
             <button
               onClick={stopStreaming}

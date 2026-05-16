@@ -67,7 +67,6 @@ function ChatSidebarMiddle() {
   const router = useRouter();
   const sessions          = useChatStore((s) => s.sessions);
   const activeSessionId   = useChatStore((s) => s.activeSessionId);
-  const setActiveSession  = useChatStore((s) => s.setActiveSession);
   const newSession        = useChatStore((s) => s.newSession);
   const deleteSession     = useChatStore((s) => s.deleteSession);
   const renameSession     = useChatStore((s) => s.renameSession);
@@ -83,12 +82,19 @@ function ChatSidebarMiddle() {
   const yesterdaySessions = dated.filter(({ t }) => t >= yesterday.getTime() && t < today.getTime()).map(({ s }) => s);
   const olderSessions     = dated.filter(({ t }) => t < yesterday.getTime()).map(({ s }) => s);
 
+  const handleSelect = (id: string) => { router.push(`/chat/${id}`); };
+
+  const handleDelete = (id: string) => {
+    if (id === activeSessionId) router.push('/new');
+    deleteSession(id);
+  };
+
   return (
     <>
       {/* New Chat button */}
       <div className="px-3 mb-4">
         <button
-          onClick={newSession}
+          onClick={() => { newSession(); router.push('/new'); }}
           className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-white border border-gray-200 text-[13px] font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-all duration-150 shadow-sm"
         >
           <Plus className="w-3.5 h-3.5 text-gray-500" />
@@ -109,9 +115,9 @@ function ChatSidebarMiddle() {
           </div>
         ) : (
           <>
-            <SessionGroup label="Today"     items={todaySessions}     activeSessionId={activeSessionId} onSelect={setActiveSession} onDelete={deleteSession} onRename={renameSession} />
-            <SessionGroup label="Yesterday" items={yesterdaySessions} activeSessionId={activeSessionId} onSelect={setActiveSession} onDelete={deleteSession} onRename={renameSession} />
-            <SessionGroup label="Older"     items={olderSessions}     activeSessionId={activeSessionId} onSelect={setActiveSession} onDelete={deleteSession} onRename={renameSession} />
+            <SessionGroup label="Today"     items={todaySessions}     activeSessionId={activeSessionId} onSelect={handleSelect} onDelete={handleDelete} onRename={renameSession} />
+            <SessionGroup label="Yesterday" items={yesterdaySessions} activeSessionId={activeSessionId} onSelect={handleSelect} onDelete={handleDelete} onRename={renameSession} />
+            <SessionGroup label="Older"     items={olderSessions}     activeSessionId={activeSessionId} onSelect={handleSelect} onDelete={handleDelete} onRename={renameSession} />
             {hasMoreSessions && (
               <div className="px-3 pb-4">
                 <button

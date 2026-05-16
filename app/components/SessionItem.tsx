@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { MessageSquare, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { type Session } from '@/lib/types';
+import { ConfirmDialog } from './common/ConfirmDialog';
 
 const DEFAULT_SESSION_TITLE = 'New Conversation';
 
@@ -33,6 +34,7 @@ export interface SessionItemProps {
 export function SessionItem({ session, isActive, onSelect, onDelete, onRename }: SessionItemProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(session.title ?? DEFAULT_SESSION_TITLE);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -80,6 +82,17 @@ export function SessionItem({ session, isActive, onSelect, onDelete, onRename }:
   }
 
   return (
+    <>
+    {confirmingDelete && (
+      <ConfirmDialog
+        title="Delete conversation"
+        description={<>Delete <span className="font-medium text-gray-900">&ldquo;{session.title ?? DEFAULT_SESSION_TITLE}&rdquo;</span>? This cannot be undone.</>}
+        confirmLabel="Delete"
+        variant="destructive"
+        onConfirm={() => { setConfirmingDelete(false); onDelete(); }}
+        onCancel={() => setConfirmingDelete(false)}
+      />
+    )}
     <button
       onClick={onSelect}
       className={cn(
@@ -98,7 +111,7 @@ export function SessionItem({ session, isActive, onSelect, onDelete, onRename }:
             {session.title ?? DEFAULT_SESSION_TITLE}
           </button>
           <button
-            onClick={(e) => { e.stopPropagation(); onDelete(); }}
+            onClick={(e) => { e.stopPropagation(); setConfirmingDelete(true); }}
             className="flex-shrink-0 p-0.5 rounded hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors -mt-0.5 opacity-0 group-hover:opacity-100"
           >
             <Trash2 className="w-3 h-3" />
@@ -115,5 +128,6 @@ export function SessionItem({ session, isActive, onSelect, onDelete, onRename }:
         </div>
       </div>
     </button>
+    </>
   );
 }

@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { X, AlertTriangle } from 'lucide-react';
+import { X } from 'lucide-react';
+import { ConfirmDialog } from '../common/ConfirmDialog';
 import { useChatStore, useActiveSession, useActiveBranch, useActiveMessages } from '@/lib/store';
 import { KaiLogo } from '../KaiLogo';
 import { MessageSelector } from './MessageSelector';
@@ -69,41 +70,23 @@ export function BranchModal() {
   const currentBranchName = activeBranch?.label ?? 'main';
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center"
-      onClick={(e) => { if (e.target === e.currentTarget) toggleBranchModal(false); }}
-    >
-      <div className="absolute inset-0 bg-black/20 backdrop-blur-[2px]" />
-
+    <>
       {/* Branch-switch confirmation dialog */}
       {confirmSwitch && (
-        <div className="absolute inset-0 z-20 flex items-center justify-center">
-          <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 p-6 w-[360px] text-center">
-            <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center mx-auto mb-4">
-              <AlertTriangle className="w-5 h-5 text-amber-500" />
-            </div>
-            <h3 className="text-[15px] font-semibold text-gray-900 mb-1">Switch branch?</h3>
-            <p className="text-[13px] text-gray-500 mb-5">
-              Switch to <span className="font-semibold text-gray-800">{confirmSwitch.name}</span>?
-              Your active context will change to this branch&apos;s messages.
-            </p>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setConfirmSwitch(null)}
-                className="flex-1 py-2 px-4 rounded-xl border border-gray-200 text-[13px] font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={confirmAndSwitch}
-                className="flex-1 py-2 px-4 rounded-xl bg-[#18181B] hover:bg-black text-white text-[13px] font-medium transition-colors"
-              >
-                Switch
-              </button>
-            </div>
-          </div>
-        </div>
+        <ConfirmDialog
+          title="Switch branch?"
+          description={<>Switch to <span className="font-semibold text-gray-800">{confirmSwitch.name}</span>? Your active context will change to this branch&apos;s messages.</>}
+          confirmLabel="Switch"
+          onConfirm={confirmAndSwitch}
+          onCancel={() => setConfirmSwitch(null)}
+        />
       )}
+
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center"
+        onClick={(e) => { if (e.target === e.currentTarget) toggleBranchModal(false); }}
+      >
+      <div className="absolute inset-0 bg-black/20 backdrop-blur-[2px]" />
 
       {/* Main modal */}
       <div className="relative z-10 w-[1060px] max-w-[96vw] h-[680px] max-h-[92vh] bg-white rounded-2xl shadow-2xl border border-gray-200 flex flex-col overflow-hidden">
@@ -171,6 +154,7 @@ export function BranchModal() {
           />
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 }
