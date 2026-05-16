@@ -51,8 +51,16 @@ export async function streamChat(
 
   if (!response.ok) {
     const body = await response.json().catch(() => null) ?? await response.text().catch(() => '');
-    const message = typeof body === 'object' ? (body?.detail ?? body?.message ?? JSON.stringify(body)) : body;
-    callbacks.onError(`HTTP ${response.status}: ${message}`);
+    const detail = typeof body === 'object' ? (body?.detail ?? body?.message) : body;
+    console.error('[stream] request failed', { status: response.status, detail });
+
+    const userMessage =
+      response.status === 401 ? 'Your session has expired. Please sign in again.' :
+      response.status === 403 ? 'You do not have permission to perform this action.' :
+      response.status >= 500  ? 'Something went wrong on our end. Please try again.' :
+                                 'Request failed. Please try again.';
+
+    callbacks.onError(userMessage);
     return;
   }
 

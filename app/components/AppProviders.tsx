@@ -11,8 +11,7 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     restoreSession();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [restoreSession]);
 
   return (
     <ThemeProvider>

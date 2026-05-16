@@ -5,33 +5,41 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 export interface ThemePreset {
   id: string;
   name: string;
-  base: string; // hex for the "600" shade
+  base: string;
   sidebar: string;
   emoji: string;
 }
 
 export const THEME_PRESETS: ThemePreset[] = [
-  { id: 'violet', name: 'Violet', base: '#6366F1', sidebar: '#FAFAFA', emoji: '💜' },
-  { id: 'indigo', name: 'Indigo', base: '#4F46E5', sidebar: '#F5F5FF', emoji: '🔵' },
-  { id: 'blue', name: 'Blue', base: '#3B82F6', sidebar: '#F0F9FF', emoji: '💙' },
-  { id: 'teal', name: 'Teal', base: '#0EA5E9', sidebar: '#F0FDFA', emoji: '🩵' },
-  { id: 'emerald', name: 'Forest', base: '#10B981', sidebar: '#F0FDF4', emoji: '💚' },
-  { id: 'amber', name: 'Amber', base: '#F59E0B', sidebar: '#FFFBEB', emoji: '🟡' },
-  { id: 'rose', name: 'Rose', base: '#F43F5E', sidebar: '#FFF1F2', emoji: '🌹' },
-  { id: 'slate', name: 'Slate', base: '#64748B', sidebar: '#F8FAFC', emoji: '🩶' },
+  { id: 'violet',  name: 'Violet', base: '#6366F1', sidebar: '#FAFAFA',  emoji: '💜' },
+  { id: 'indigo',  name: 'Indigo', base: '#4F46E5', sidebar: '#F5F5FF',  emoji: '🔵' },
+  { id: 'blue',    name: 'Blue',   base: '#3B82F6', sidebar: '#F0F9FF',  emoji: '💙' },
+  { id: 'teal',    name: 'Teal',   base: '#0EA5E9', sidebar: '#F0FDFA',  emoji: '🩵' },
+  { id: 'emerald', name: 'Forest', base: '#10B981', sidebar: '#F0FDF4',  emoji: '💚' },
+  { id: 'amber',   name: 'Amber',  base: '#F59E0B', sidebar: '#FFFBEB',  emoji: '🟡' },
+  { id: 'rose',    name: 'Rose',   base: '#F43F5E', sidebar: '#FFF1F2',  emoji: '🌹' },
+  { id: 'slate',   name: 'Slate',  base: '#64748B', sidebar: '#F8FAFC',  emoji: '🩶' },
 ];
 
-interface ThemeContextType {
-  activePreset: ThemePreset;
+const DEFAULT_PRESET_ID = 'violet';
+
+interface StoredTheme {
+  presetId: string;
   customColor: string | null;
   isDark: boolean;
-  accentColor: string; // resolved accent (custom or preset)
-  setPreset: (id: string) => void;
-  setCustomColor: (hex: string) => void;
-  toggleDark: () => void;
 }
 
-const ThemeContext = createContext<ThemeContextType | null>(null);
+const STORAGE_KEY = 'kai-theme';
+
+function loadStoredTheme(): StoredTheme {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch (err) {
+    console.error('[ThemeProvider] Failed to load theme from localStorage:', err);
+  }
+  return { presetId: DEFAULT_PRESET_ID, customColor: null, isDark: false };
+}
 
 // ── Color utilities ────────────────────────────────────────────────────────
 
@@ -60,12 +68,12 @@ function hslToHex(h: number, s: number, l: number): string {
   const x = c * (1 - Math.abs((h / 60) % 2 - 1));
   const m = l - c / 2;
   let r = 0, g = 0, b = 0;
-  if (h < 60) { r = c; g = x; }
+  if      (h < 60)  { r = c; g = x; }
   else if (h < 120) { r = x; g = c; }
   else if (h < 180) { g = c; b = x; }
   else if (h < 240) { g = x; b = c; }
   else if (h < 300) { r = x; b = c; }
-  else { r = c; b = x; }
+  else              { r = c; b = x; }
   const hex = (v: number) => Math.round((v + m) * 255).toString(16).padStart(2, '0');
   return `#${hex(r)}${hex(g)}${hex(b)}`;
 }
@@ -87,94 +95,79 @@ export function generatePalette(hex: string): Record<string, string> {
   };
 }
 
-function injectThemeCSS(accent: string, sidebar: string) {
+function applyTheme(accent: string, sidebar: string, isDark: boolean) {
   const p = generatePalette(accent);
-  const css = `
-    :root {
-      --color-violet-50:  ${p['50']};
-      --color-violet-100: ${p['100']};
-      --color-violet-200: ${p['200']};
-      --color-violet-300: ${p['300']};
-      --color-violet-400: ${p['400']};
-      --color-violet-500: ${p['500']};
-      --color-violet-600: ${p['600']};
-      --color-violet-700: ${p['700']};
-      --color-violet-800: ${p['800']};
-      --color-violet-900: ${p['900']};
-      --color-indigo-400: ${p['400']};
-      --color-indigo-500: ${p['500']};
-      --color-indigo-600: ${p['600']};
-      --color-indigo-700: ${p['700']};
-      --kai-sidebar-bg: ${sidebar};
-      --kai-accent: ${accent};
-    }
-  `;
+
+  // Inject CSS variables so components can use var(--accent-*) regardless of preset name
   let el = document.getElementById('kai-theme-vars');
   if (!el) {
     el = document.createElement('style');
     el.id = 'kai-theme-vars';
     document.head.appendChild(el);
   }
-  el.textContent = css;
+  el.textContent = `
+    :root {
+      --accent-50:  ${p['50']};
+      --accent-100: ${p['100']};
+      --accent-200: ${p['200']};
+      --accent-300: ${p['300']};
+      --accent-400: ${p['400']};
+      --accent-500: ${p['500']};
+      --accent-600: ${p['600']};
+      --accent-700: ${p['700']};
+      --accent-800: ${p['800']};
+      --accent-900: ${p['900']};
+      --accent-950: ${p['950']};
+      --kai-sidebar-bg: ${sidebar};
+      --kai-accent: ${accent};
+    }
+  `;
+
+  document.documentElement.classList.toggle('dark', isDark);
 }
+
+// ── Context ────────────────────────────────────────────────────────────────
+
+interface ThemeContextType {
+  activePreset: ThemePreset;
+  customColor: string | null;
+  isDark: boolean;
+  accentColor: string;
+  setPreset: (id: string) => void;
+  setCustomColor: (hex: string) => void;
+  toggleDark: () => void;
+}
+
+const ThemeContext = createContext<ThemeContextType | null>(null);
 
 // ── Provider ──────────────────────────────────────────────────────────────
 
-const STORAGE_KEY = 'kai-theme';
-
-interface StoredTheme {
-  presetId: string;
-  customColor: string | null;
-  isDark: boolean;
-}
-
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [activePresetId, setActivePresetId] = useState('violet');
-  const [customColor, setCustomColorState] = useState<string | null>(null);
-  const [isDark, setIsDark] = useState(false);
+  // Initialize directly from localStorage to avoid flash of default theme on load
+  const [activePresetId, setActivePresetId] = useState<string>(() => loadStoredTheme().presetId);
+  const [customColor, setCustomColor]        = useState<string | null>(() => loadStoredTheme().customColor);
+  const [isDark, setIsDark]                  = useState<boolean>(() => loadStoredTheme().isDark);
 
   const activePreset = THEME_PRESETS.find(p => p.id === activePresetId) ?? THEME_PRESETS[0];
-  const accentColor = customColor ?? activePreset.base;
+  const accentColor  = customColor ?? activePreset.base;
 
-  // Apply theme whenever it changes
+  // Apply theme to DOM whenever it changes
   useEffect(() => {
-    injectThemeCSS(accentColor, activePreset.sidebar);
-    if (isDark) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
+    applyTheme(accentColor, activePreset.sidebar, isDark);
   }, [accentColor, activePreset.sidebar, isDark]);
 
-  // Load from localStorage on mount
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const stored: StoredTheme = JSON.parse(raw);
-        if (stored.presetId) setActivePresetId(stored.presetId);
-        if (stored.customColor) setCustomColorState(stored.customColor);
-        if (stored.isDark !== undefined) setIsDark(stored.isDark);
-      }
-    } catch {}
-  }, []);
-
-  // Persist to localStorage
+  // Persist to localStorage whenever it changes
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ presetId: activePresetId, customColor, isDark }));
   }, [activePresetId, customColor, isDark]);
 
   const setPreset = useCallback((id: string) => {
     setActivePresetId(id);
-    setCustomColorState(null);
-  }, []);
-
-  const setCustomColor = useCallback((hex: string) => {
-    setCustomColorState(hex);
+    setCustomColor(null);
   }, []);
 
   const toggleDark = useCallback(() => {
-    setIsDark(p => !p);
+    setIsDark(prev => !prev);
   }, []);
 
   return (

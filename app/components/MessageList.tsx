@@ -8,10 +8,17 @@ import { EmptyState } from './EmptyState';
 interface MessageListProps {
   messages: Message[];
   streamingMessageId: string | null;
-  hasMoreMessages?: boolean;
-  isLoadingMessages?: boolean;
-  onLoadMore?: () => void;
+  hasMoreMessages: boolean;
+  isLoadingMessages: boolean;
+  onLoadMore: () => void;
 }
+
+// Alternating skeleton shapes to mimic assistant / user / assistant bubble layout
+const SKELETON_SHAPES = [
+  { align: 'gap-3',       avatar: true,  bubble: 'h-16 flex-1 max-w-[60%]' },
+  { align: 'justify-end', avatar: false, bubble: 'h-10 w-48'               },
+  { align: 'gap-3',       avatar: true,  bubble: 'h-16 flex-1 max-w-[60%]' },
+];
 
 export function MessageList({
   messages,
@@ -21,14 +28,11 @@ export function MessageList({
   onLoadMore,
 }: MessageListProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const lastMessageContent = messages[messages.length - 1]?.content;
 
+  // Scroll to bottom when a new message is added or streaming begins/ends
   useEffect(() => {
-    if (bottomRef.current) {
-      bottomRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [messages.length, lastMessageContent]);
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages.length, streamingMessageId]);
 
   if (messages.length === 0 && !isLoadingMessages) {
     return <EmptyState />;
@@ -36,12 +40,11 @@ export function MessageList({
 
   return (
     <div
-      ref={containerRef}
       className="flex-1 overflow-y-auto"
       style={{ scrollbarGutter: 'stable' } as React.CSSProperties}
     >
       <div className="max-w-[740px] mx-auto px-6 pt-8 pb-4">
-        {/* Load more — older messages */}
+
         {hasMoreMessages && (
           <div className="flex justify-center mb-6">
             <button
@@ -54,13 +57,12 @@ export function MessageList({
           </div>
         )}
 
-        {/* Loading skeleton while first fetch is in flight */}
         {isLoadingMessages && messages.length === 0 && (
           <div className="space-y-6 animate-pulse">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className={`flex ${i % 2 === 0 ? 'justify-end' : 'gap-3'}`}>
-                {i % 2 !== 0 && <div className="w-7 h-7 rounded-lg bg-gray-100 flex-shrink-0" />}
-                <div className={`rounded-2xl bg-gray-100 ${i % 2 === 0 ? 'h-10 w-48' : 'h-16 flex-1 max-w-[60%]'}`} />
+            {SKELETON_SHAPES.map((shape, i) => (
+              <div key={i} className={`flex ${shape.align}`}>
+                {shape.avatar && <div className="w-7 h-7 rounded-lg bg-gray-100 flex-shrink-0" />}
+                <div className={`rounded-2xl bg-gray-100 ${shape.bubble}`} />
               </div>
             ))}
           </div>

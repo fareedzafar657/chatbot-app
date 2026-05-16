@@ -6,47 +6,47 @@ import { MessageList } from './MessageList';
 import { MessageInput } from './MessageInput';
 
 export function ChatWindow() {
-  const toggleBranchModal = useChatStore((state) => state.toggleBranchModal);
-  const isStreaming = useChatStore((state) => state.isStreaming);
-  const streamingMessageId = useChatStore((state) => state.streamingMessageId);
-  const isLoadingMessages = useChatStore((state) => state.isLoadingMessages);
-  const hasMoreMessages = useChatStore((state) => state.hasMoreMessages);
-  const loadMoreMessages = useChatStore((state) => state.loadMoreMessages);
-  const branchCount = useChatStore((state) => state.branches.length);
-  const activeSession = useActiveSession();
-  const activeBranch = useActiveBranch();
+  const toggleBranchModal  = useChatStore((s) => s.toggleBranchModal);
+  const isStreaming         = useChatStore((s) => s.isStreaming);
+  const streamingMessageId  = useChatStore((s) => s.streamingMessageId);
+  const isLoadingMessages   = useChatStore((s) => s.isLoadingMessages);
+  const hasMoreMessages     = useChatStore((s) => s.hasMoreMessages);
+  const loadMoreMessages    = useChatStore((s) => s.loadMoreMessages);
+  const branchCount         = useChatStore((s) => s.branches.length);
+
+  const activeSession  = useActiveSession();
+  const activeBranch   = useActiveBranch();
   const activeMessages = useActiveMessages();
 
-  const title = activeSession?.title ?? 'New Conversation';
+  const title       = activeSession?.title ?? 'New Conversation';
+  const hasMessages = activeMessages.length > 0;
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-white">
+
       {/* Header */}
       <div className="flex-shrink-0 h-[56px] flex items-center justify-between px-6 border-b border-gray-100 bg-white">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div className="min-w-0">
-            <h1
-              className="text-gray-900 truncate"
-              style={{ fontSize: '14px', fontWeight: 600, lineHeight: '1.4' }}
-            >
-              {title}
-            </h1>
-            {activeBranch && (
-              <div className="flex items-center gap-1.5">
-                <GitBranch className="w-3 h-3 text-gray-400" />
-                <span className="text-[11px] text-gray-400">{activeBranch.label}</span>
-                {branchCount > 1 && (
-                  <>
-                    <span className="text-gray-300">·</span>
-                    <span className="text-[11px] text-violet-500">{branchCount} branches</span>
-                  </>
-                )}
-              </div>
-            )}
-          </div>
+
+        {/* Title + branch label */}
+        <div className="min-w-0">
+          <h1 className="text-[14px] font-semibold leading-snug text-gray-900 truncate">
+            {title}
+          </h1>
+          {activeBranch && (
+            <div className="flex items-center gap-1.5">
+              <GitBranch className="w-3 h-3 text-gray-400" />
+              <span className="text-[11px] text-gray-400">{activeBranch.label}</span>
+              {branchCount > 1 && (
+                <>
+                  <span className="text-gray-300">·</span>
+                  <span className="text-[11px] text-violet-500">{branchCount} branches</span>
+                </>
+              )}
+            </div>
+          )}
         </div>
 
-        {/* Right controls */}
+        {/* Streaming indicator + branch button */}
         <div className="flex items-center gap-2 flex-shrink-0">
           {isStreaming && (
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-violet-50 border border-violet-100">
@@ -56,9 +56,9 @@ export function ChatWindow() {
           )}
           <button
             onClick={() => toggleBranchModal(true)}
-            disabled={activeMessages.length === 0}
+            disabled={!hasMessages}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all ${
-              activeMessages.length > 0
+              hasMessages
                 ? 'text-gray-600 hover:bg-gray-100 hover:text-gray-800 border border-gray-200'
                 : 'text-gray-300 border border-gray-100 cursor-not-allowed'
             }`}
@@ -69,7 +69,6 @@ export function ChatWindow() {
         </div>
       </div>
 
-      {/* Messages / Empty state */}
       <MessageList
         messages={activeMessages}
         streamingMessageId={streamingMessageId}
@@ -78,7 +77,6 @@ export function ChatWindow() {
         onLoadMore={loadMoreMessages}
       />
 
-      {/* Input */}
       <MessageInput />
     </div>
   );

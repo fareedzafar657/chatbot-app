@@ -222,6 +222,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   },
 
   renameSession: async (sessionId, title) => {
+    const snapshot = get().sessions;
+
     set((state) => ({
       sessions: state.sessions.map((s) =>
         s.sessionId === sessionId ? { ...s, title } : s
@@ -231,7 +233,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     try {
       await api.updateSession(sessionId, { title });
     } catch (err) {
-      set({ errorMessage: (err as Error).message });
+      set({ sessions: snapshot, errorMessage: (err as Error).message });
     }
   },
 
@@ -360,7 +362,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
                   sessionsCursor: result.nextCursor ?? null,
                 }));
               })
-              .catch(() => {});
+              .catch((err) => useChatStore.setState({ errorMessage: (err as Error).message }));
 
             // Refresh branches for updated count
             if (realSessionId) {
@@ -376,7 +378,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
                     ),
                   }));
                 })
-                .catch(() => {});
+                .catch((err) => useChatStore.setState({ errorMessage: (err as Error).message }));
             }
           },
 
@@ -482,58 +484,18 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     await get().loadMessages(branchId);
   },
 
-  autoSelectMessages: () => {
-    const { messages } = get();
-    const selected = new Set<string>();
+  // AI Pick — not yet implemented.
+  // Idea: POST all messages from the active branch to a dedicated API endpoint,
+  // optionally with a user-provided preference string (e.g. "focus on the auth discussion").
+  // The AI returns the message IDs it considers most relevant for the branch context.
+  // Needs: a new Lambda/API route, prompt design, and a preference input UI in MessageSelector.
+  autoSelectMessages: () => [],
 
-    const first2 = messages.slice(0, 2).map((m) => m.msgId);
-    first2.forEach((id) => selected.add(id));
-
-    const last4 = messages.slice(-4).map((m) => m.msgId);
-    last4.forEach((id) => selected.add(id));
-
-    messages.forEach((m) => {
-      if (m.role === 'assistant' && (m.content?.length ?? 0) > 400) {
-        selected.add(m.msgId);
-      }
-      if (m.role === 'user' && m.content?.includes('?')) {
-        selected.add(m.msgId);
-      }
-    });
-
-    return Array.from(selected);
-  },
-
-  cherryPickBranch: (selectedMsgIds, branchName) => {
-    const { activeSessionId, activeBranchId, branches, messages } = get();
-    if (!activeSessionId || !activeBranchId) return;
-
-    const activeBranch = branches.find((b) => b.branchId === activeBranchId);
-    if (!activeBranch) return;
-
-    const newBranchId = genTempId();
-    const now = new Date().toISOString();
-
-    const newBranch: Branch = {
-      branchId: newBranchId,
-      sessionId: activeSessionId,
-      parentBranchId: activeBranchId,
-      parentMsgId: selectedMsgIds[0],
-      selectedMsgIds,
-      label: branchName,
-      description: `Cherry-picked from ${activeBranch.label}`,
-      createdAt: now,
-    };
-
-    const filteredMessages = messages.filter((m) => selectedMsgIds.includes(m.msgId));
-
-    set((state) => ({
-      branches: [...state.branches, newBranch],
-      activeBranchId: newBranchId,
-      messages: filteredMessages,
-      showBranchModal: false,
-    }));
-  },
+  // Cherry Pick — not yet implemented.
+  // Idea: let the user browse all branches in the session, select individual messages
+  // from any branch (not just the active one), and append them to the current active branch —
+  // analogous to `git cherry-pick`. Needs a backend API + a branch/message browser UI.
+  cherryPickBranch: () => {},
 
   dismissError: () => set({ errorMessage: null }),
 }));

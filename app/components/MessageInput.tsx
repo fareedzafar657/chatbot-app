@@ -5,20 +5,20 @@ import { ArrowUp, Square, GitBranch } from 'lucide-react';
 import { useChatStore, useActiveMessages } from '@/lib/store';
 
 export function MessageInput() {
-  const sendMessage = useChatStore((state) => state.sendMessage);
-  const stopStreaming = useChatStore((state) => state.stopStreaming);
-  const toggleBranchModal = useChatStore((state) => state.toggleBranchModal);
-  const isStreaming = useChatStore((state) => state.isStreaming);
-  const activeMessages = useActiveMessages();
+  const sendMessage      = useChatStore((s) => s.sendMessage);
+  const stopStreaming    = useChatStore((s) => s.stopStreaming);
+  const toggleBranchModal = useChatStore((s) => s.toggleBranchModal);
+  const isStreaming      = useChatStore((s) => s.isStreaming);
+  const activeSessionId  = useChatStore((s) => s.activeSessionId);
+  const activeMessages   = useActiveMessages();
 
   const [value, setValue] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const activeSessionId = useChatStore((state) => state.activeSessionId);
 
-  // Auto-resize textarea
   useEffect(() => {
     const el = textareaRef.current;
     if (!el) return;
+    // Reset to auto first so scrollHeight recalculates correctly (otherwise only grows)
     el.style.height = 'auto';
     el.style.height = Math.min(el.scrollHeight, 200) + 'px';
   }, [value]);
@@ -40,21 +40,17 @@ export function MessageInput() {
     }
   };
 
-  const canSend = value.trim().length > 0 && !isStreaming;
+  const canSend     = value.trim().length > 0 && !isStreaming;
   const hasBranches = activeMessages.length > 0;
 
   return (
-    <div className="flex-shrink-0 border-t border-gray-100 bg-white px-4 pt-4 pb-4">
+    <div className="flex-shrink-0 border-t border-gray-100 bg-white px-4 py-4">
       <div className="max-w-[740px] mx-auto">
-        {/* Input container */}
         <div
-          className={`flex items-end gap-2 bg-[#F7F7F9] rounded-2xl px-4 py-3 border transition-all duration-150 ${
-            isStreaming
-              ? 'border-gray-200 opacity-80'
-              : 'border-gray-200 focus-within:border-gray-300 focus-within:shadow-sm'
+          className={`flex items-end gap-2 bg-[#F7F7F9] rounded-2xl px-4 py-3 border border-gray-200 transition-all duration-150 ${
+            isStreaming ? 'opacity-80' : 'focus-within:border-gray-300 focus-within:shadow-sm'
           }`}
         >
-          {/* Branch manager button */}
           <button
             onClick={() => toggleBranchModal(true)}
             disabled={!hasBranches}
@@ -68,7 +64,6 @@ export function MessageInput() {
             <GitBranch className="w-4 h-4" />
           </button>
 
-          {/* Textarea */}
           <textarea
             ref={textareaRef}
             value={value}
@@ -80,7 +75,6 @@ export function MessageInput() {
             className="flex-1 bg-transparent text-[14px] text-gray-800 placeholder-gray-400 outline-none resize-none leading-relaxed py-0.5 min-h-[24px] max-h-[200px] disabled:cursor-not-allowed"
           />
 
-          {/* Send / Stop button */}
           {isStreaming ? (
             <button
               onClick={stopStreaming}
@@ -105,7 +99,6 @@ export function MessageInput() {
           )}
         </div>
 
-        {/* Disclaimer */}
         <p className="text-center text-[11px] text-gray-400 mt-2.5">
           K-AI can make mistakes. Verify important information.
         </p>

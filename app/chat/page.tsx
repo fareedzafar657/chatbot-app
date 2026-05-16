@@ -12,12 +12,13 @@ export default function ChatPage() {
   const router = useRouter();
   const showBranchModal = useChatStore((state) => state.showBranchModal);
   const user = useAuthStore((state) => state.user);
+  const isLoading = useAuthStore((state) => state.isLoading);
 
   useEffect(() => {
-    if (!user) router.replace('/login');
-  }, [user, router]);
+    if (!isLoading && !user) router.replace('/login');
+  }, [isLoading, user, router]);
 
-  if (!user) return null;
+  if (isLoading || !user) return null;
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-white">

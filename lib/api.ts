@@ -51,17 +51,27 @@ client.interceptors.response.use(
     return res;
   },
   async (err) => {
-    if (err.response?.status === 401) {
+    const status = err.response?.status;
+
+    if (status === 401) {
       const { useAuthStore } = await import('./authStore');
       await useAuthStore.getState().logout();
       if (typeof window !== 'undefined') window.location.href = '/login';
+      throw new Error('Your session has expired. Please sign in again.');
     }
+
+    // Map status codes to user-safe messages; log detail for debugging only
     const detail = err.response?.data?.detail ?? err.response?.data?.message ?? err.message;
-    // FastAPI 422 validation errors return detail as an array of objects
-    const message = Array.isArray(detail)
-      ? detail.map((d) => `${d.loc?.slice(1).join('.')}: ${d.msg}`).join('; ')
-      : typeof detail === 'string' ? detail : JSON.stringify(detail);
-    throw new Error(message);
+    console.error('[api] request failed', { status, detail });
+
+    const userMessage =
+      status === 403 ? 'You do not have permission to perform this action.' :
+      status === 404 ? 'The requested resource was not found.' :
+      status === 422 ? 'Invalid request. Please check your input.' :
+      status >= 500  ? 'Something went wrong on our end. Please try again.' :
+                       'Request failed. Please try again.';
+
+    throw new Error(userMessage);
   }
 );
 
