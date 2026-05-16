@@ -44,7 +44,8 @@ export interface Session {
   title?: string;
   createdAt: string;
   updatedAt: string;
-  // Local-only — populated after loadBranches, used for sidebar display
+  // TODO(backend): should come from GET /sessions once backend includes branch_count in the list response.
+  // Currently populated client-side only after loadBranches() is called on session open.
   branchCount?: number;
 }
 

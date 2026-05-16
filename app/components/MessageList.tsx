@@ -3,7 +3,6 @@
 import { useEffect, useRef } from 'react';
 import { Message } from '@/lib/types';
 import { MessageBubble } from './MessageBubble';
-import { EmptyState } from './EmptyState';
 
 interface MessageListProps {
   messages: Message[];
@@ -33,10 +32,6 @@ export function MessageList({
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages.length, streamingMessageId]);
-
-  if (messages.length === 0 && !isLoadingMessages) {
-    return <EmptyState />;
-  }
 
   return (
     <div

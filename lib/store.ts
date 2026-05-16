@@ -4,6 +4,8 @@ import { Session, Message, Branch } from './types';
 import { api } from './api';
 import { streamChat } from './stream';
 
+const GENERIC_ERROR = 'Something went wrong. Please try again.';
+
 function genTempId(): string {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
     return crypto.randomUUID();
@@ -53,6 +55,7 @@ interface ChatActions {
 export type ChatStore = ChatState & ChatActions;
 
 export const useChatStore = create<ChatStore>((set, get) => ({
+  // ── Initial state ─────────────────────────────────────────────────────────
   sessions: [],
   activeSessionId: null,
   activeBranchId: null,
@@ -70,6 +73,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   hasMoreSessions: false,
   sessionsCursor: null,
 
+  // ── Session management ────────────────────────────────────────────────────
+
   initSessions: async () => {
     set({ isLoadingSessions: true });
     try {
@@ -85,8 +90,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         // Always start with a new session, regardless of existing sessions
         get().newSession();
       }
-    } catch (err) {
-      set({ isLoadingSessions: false, errorMessage: (err as Error).message });
+    } catch {
+      set({ isLoadingSessions: false, errorMessage: GENERIC_ERROR });
       // Even on error, ensure there's a session to work with
       const { activeSessionId } = get();
       if (!activeSessionId) {
@@ -105,8 +110,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         hasMoreSessions: result.hasMore,
         sessionsCursor: result.nextCursor ?? null,
       });
-    } catch (err) {
-      set({ errorMessage: (err as Error).message });
+    } catch {
+      set({ errorMessage: GENERIC_ERROR });
     }
   },
 
@@ -133,6 +138,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     get().loadBranches(sessionId);
   },
 
+  // ── Message operations ────────────────────────────────────────────────────
+
   loadMessages: async (branchId, cursor?) => {
     set({ isLoadingMessages: true });
     try {
@@ -144,8 +151,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         messagesCursor: result.nextCursor ?? null,
         isLoadingMessages: false,
       }));
-    } catch (err) {
-      set({ isLoadingMessages: false, errorMessage: (err as Error).message });
+    } catch {
+      set({ isLoadingMessages: false, errorMessage: GENERIC_ERROR });
     }
   },
 
@@ -154,6 +161,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     if (!messagesCursor || !activeBranchId) return;
     await get().loadMessages(activeBranchId, messagesCursor);
   },
+
+  // ── Branch operations ─────────────────────────────────────────────────────
 
   loadBranches: async (sessionId) => {
     try {
@@ -164,10 +173,76 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           s.sessionId === sessionId ? { ...s, branchCount: branches.length } : s
         ),
       }));
-    } catch (err) {
-      set({ errorMessage: (err as Error).message });
+    } catch {
+      set({ errorMessage: GENERIC_ERROR });
     }
   },
+
+  forkBranch: async (selectedMsgIds, label?) => {
+    const { activeSessionId, activeBranchId } = get();
+    if (!activeSessionId || !activeBranchId) return;
+
+    try {
+      const newBranch = await api.forkBranch({
+        session_id: activeSessionId,
+        parent_branch_id: activeBranchId,
+        selected_msg_ids: selectedMsgIds,
+        label,
+      });
+
+      await api.updateSession(activeSessionId, { active_branch_id: newBranch.branchId });
+
+      set((state) => ({
+        branches: [...state.branches, newBranch],
+        activeBranchId: newBranch.branchId,
+        messages: state.messages.filter(m => selectedMsgIds.includes(m.msgId)),
+        showBranchModal: false,
+        sessions: state.sessions.map((s) =>
+          s.sessionId === activeSessionId
+            ? { ...s, activeBranchId: newBranch.branchId, branchCount: state.branches.length + 1 }
+            : s
+        ),
+      }));
+    } catch {
+      set({ errorMessage: GENERIC_ERROR });
+    }
+  },
+
+  setActiveBranch: async (branchId) => {
+    const { activeSessionId } = get();
+    // Clear messages immediately so the skeleton shows while the new branch loads
+    set({ activeBranchId: branchId, messages: [], isLoadingMessages: true });
+
+    if (activeSessionId) {
+      try {
+        await api.updateSession(activeSessionId, { active_branch_id: branchId });
+        set((state) => ({
+          sessions: state.sessions.map((s) =>
+            s.sessionId === activeSessionId ? { ...s, activeBranchId: branchId } : s
+          ),
+        }));
+      } catch {
+        set({ errorMessage: GENERIC_ERROR });
+      }
+    }
+
+    await get().loadMessages(branchId);
+  },
+
+  // AI Pick — not yet implemented.
+  // Idea: POST all messages from the active branch to a dedicated API endpoint,
+  // optionally with a user-provided preference string (e.g. "focus on the auth discussion").
+  // The AI returns the message IDs it considers most relevant for the branch context.
+  // Needs: a new Lambda/API route, prompt design, and a preference input UI in MessageSelector.
+  autoSelectMessages: () => [],
+
+  // Cherry Pick — not yet implemented.
+  // Idea: let the user browse all branches in the session, select individual messages
+  // from any branch (not just the active one), and append them to the current active branch —
+  // analogous to `git cherry-pick`. Needs a backend API + a branch/message browser UI.
+  cherryPickBranch: () => {},
+
+  // ── Session CRUD ──────────────────────────────────────────────────────────
 
   newSession: () => {
     const { abortController } = get();
@@ -215,9 +290,9 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
     try {
       await api.deleteSession(sessionId);
-    } catch (err) {
+    } catch {
       // Rollback optimistic removal
-      set({ sessions: snapshot, errorMessage: (err as Error).message });
+      set({ sessions: snapshot, errorMessage: GENERIC_ERROR });
     }
   },
 
@@ -232,10 +307,12 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
     try {
       await api.updateSession(sessionId, { title });
-    } catch (err) {
-      set({ sessions: snapshot, errorMessage: (err as Error).message });
+    } catch {
+      set({ sessions: snapshot, errorMessage: GENERIC_ERROR });
     }
   },
+
+  // ── Stream handling ───────────────────────────────────────────────────────
 
   sendMessage: async (prompt) => {
     const { activeSessionId, activeBranchId, isStreaming } = get();
@@ -362,7 +439,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
                   sessionsCursor: result.nextCursor ?? null,
                 }));
               })
-              .catch((err) => useChatStore.setState({ errorMessage: (err as Error).message }));
+              .catch(() => useChatStore.setState({ errorMessage: GENERIC_ERROR }));
 
             // Refresh branches for updated count
             if (realSessionId) {
@@ -378,7 +455,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
                     ),
                   }));
                 })
-                .catch((err) => useChatStore.setState({ errorMessage: (err as Error).message }));
+                .catch(() => useChatStore.setState({ errorMessage: GENERIC_ERROR }));
             }
           },
 
@@ -405,7 +482,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           isStreaming: false,
           streamingMessageId: null,
           abortController: null,
-          errorMessage: (err as Error).message,
+          errorMessage: GENERIC_ERROR,
         }));
       }
     }
@@ -432,77 +509,14 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     }
   },
 
+  // ── UI state ──────────────────────────────────────────────────────────────
+
   toggleBranchModal: (show) => set({ showBranchModal: show }),
-
-  forkBranch: async (selectedMsgIds, label?) => {
-    const { activeSessionId, activeBranchId } = get();
-    if (!activeSessionId || !activeBranchId) return;
-
-    try {
-      const newBranch = await api.forkBranch({
-        session_id: activeSessionId,
-        parent_branch_id: activeBranchId,
-        selected_msg_ids: selectedMsgIds,
-        label,
-      });
-
-      await api.updateSession(activeSessionId, { active_branch_id: newBranch.branchId });
-
-      set((state) => ({
-        branches: [...state.branches, newBranch],
-        activeBranchId: newBranch.branchId,
-        messages: state.messages.filter(m => selectedMsgIds.includes(m.msgId)),
-        showBranchModal: false,
-        sessions: state.sessions.map((s) =>
-          s.sessionId === activeSessionId
-            ? { ...s, activeBranchId: newBranch.branchId, branchCount: state.branches.length + 1 }
-            : s
-        ),
-      }));
-    } catch (err) {
-      set({ errorMessage: (err as Error).message });
-    }
-  },
-
-  setActiveBranch: async (branchId) => {
-    const { activeSessionId } = get();
-    set({ activeBranchId: branchId });
-
-    if (activeSessionId) {
-      try {
-        await api.updateSession(activeSessionId, { active_branch_id: branchId });
-        set((state) => ({
-          sessions: state.sessions.map((s) =>
-            s.sessionId === activeSessionId ? { ...s, activeBranchId: branchId } : s
-          ),
-        }));
-      } catch (err) {
-        set({ errorMessage: (err as Error).message });
-      }
-    }
-
-    await get().loadMessages(branchId);
-  },
-
-  // AI Pick — not yet implemented.
-  // Idea: POST all messages from the active branch to a dedicated API endpoint,
-  // optionally with a user-provided preference string (e.g. "focus on the auth discussion").
-  // The AI returns the message IDs it considers most relevant for the branch context.
-  // Needs: a new Lambda/API route, prompt design, and a preference input UI in MessageSelector.
-  autoSelectMessages: () => [],
-
-  // Cherry Pick — not yet implemented.
-  // Idea: let the user browse all branches in the session, select individual messages
-  // from any branch (not just the active one), and append them to the current active branch —
-  // analogous to `git cherry-pick`. Needs a backend API + a branch/message browser UI.
-  cherryPickBranch: () => {},
 
   dismissError: () => set({ errorMessage: null }),
 }));
 
-// ---------------------------------------------------------------------------
-// Selector hooks — same names as before so no component changes needed
-// ---------------------------------------------------------------------------
+// ── Selector hooks ────────────────────────────────────────────────────────────
 
 export const useActiveSession = () =>
   useChatStore((state) =>

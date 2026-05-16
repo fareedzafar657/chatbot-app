@@ -10,7 +10,7 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
   const restoreSession = useAuthStore((state) => state.restoreSession);
 
   useEffect(() => {
-    restoreSession();
+    restoreSession().catch(() => {}); // non-critical: app renders unauthenticated if restoration fails
   }, [restoreSession]);
 
   return (

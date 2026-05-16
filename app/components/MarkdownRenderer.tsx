@@ -1,25 +1,14 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Check, Copy, X } from 'lucide-react';
+import { useCopyToClipboard } from '@/lib/hooks';
 
 function CodeBlock({ lang, code }: { lang: string; code: string }) {
-  const [copyState, setCopyState] = useState<'idle' | 'copied' | 'error'>('idle');
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(code).then(
-      () => {
-        setCopyState('copied');
-        setTimeout(() => setCopyState('idle'), 2000);
-      },
-      () => {
-        setCopyState('error');
-        setTimeout(() => setCopyState('idle'), 2000);
-      }
-    );
-  };
+  const [copyState, copy] = useCopyToClipboard();
+  const handleCopy = () => copy(code);
 
   return (
     <div className="my-3 rounded-xl overflow-hidden border border-gray-200 shadow-sm">
@@ -60,12 +49,15 @@ export function MarkdownRenderer({ content, isStreaming }: MarkdownRendererProps
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
+          // ── Headings ───────────────────────────────────────────────────────
           h1: ({ children }) => <h1 className="text-[15px] font-semibold text-gray-900 mt-4 mb-1">{children}</h1>,
           h2: ({ children }) => <h2 className="text-[14px] font-semibold text-gray-900 mt-3 mb-1">{children}</h2>,
           h3: ({ children }) => <h3 className="text-[13px] font-semibold text-gray-800 mt-2 mb-0.5">{children}</h3>,
+          // ── Inline text ────────────────────────────────────────────────────
           p:  ({ children }) => <p className="leading-relaxed">{children}</p>,
           strong: ({ children }) => <strong className="font-semibold text-gray-900">{children}</strong>,
           em:     ({ children }) => <em className="italic">{children}</em>,
+          // ── Code ───────────────────────────────────────────────────────────
           code: ({ className, children, ...props }) => {
             // Block code is handled by the `pre` component — inline code lands here
             const isInline = !('data-language' in props);
@@ -85,6 +77,7 @@ export function MarkdownRenderer({ content, isStreaming }: MarkdownRendererProps
             const code  = String(child?.props?.children ?? '').trimEnd();
             return <CodeBlock lang={lang} code={code} />;
           },
+          // ── Lists ──────────────────────────────────────────────────────────
           ul: ({ children }) => <ul className="space-y-1.5 my-2">{children}</ul>,
           ol: ({ children }) => <ol className="space-y-1.5 my-2">{children}</ol>,
           li: ({ children }) => (
@@ -93,6 +86,7 @@ export function MarkdownRenderer({ content, isStreaming }: MarkdownRendererProps
               <span>{children}</span>
             </li>
           ),
+          // ── Block elements ─────────────────────────────────────────────────
           a: ({ href, children }) => (
             <a href={href} target="_blank" rel="noopener noreferrer" className="text-violet-600 hover:underline">
               {children}
@@ -103,6 +97,7 @@ export function MarkdownRenderer({ content, isStreaming }: MarkdownRendererProps
               {children}
             </blockquote>
           ),
+          // ── Tables ─────────────────────────────────────────────────────────
           table: ({ children }) => (
             <div className="overflow-x-auto my-3">
               <table className="w-full text-[13px] border-collapse">{children}</table>

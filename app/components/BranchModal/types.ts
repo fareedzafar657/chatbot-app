@@ -1,4 +1,4 @@
-import React from 'react';
+import { type ElementType } from 'react';
 import { GitBranch, Scissors } from 'lucide-react';
 
 export type RightTab = 'tree' | 'versions';
@@ -6,7 +6,7 @@ export type Operation = 'fork' | null;
 
 export interface OperationButton {
   op: 'fork';
-  icon: React.ElementType;
+  icon: ElementType;
   label: string;
   desc: string;
   colorClass: string;
@@ -21,14 +21,8 @@ export const OP_BUTTONS: OperationButton[] = [
     desc: 'New branch from selected',
     colorClass: 'bg-violet-50 border-violet-200 text-violet-700 hover:bg-violet-100',
   },
-  // Cherry Pick — not yet implemented.
-  // Idea: open a sub-view inside the modal showing all branches and their messages.
-  // User selects individual messages from any branch (not just the active one) and
-  // appends them to the current active branch — similar to `git cherry-pick`, where
-  // you pick specific commits from any branch into your current one.
-  // Needs: backend API, a branch/message browser UI, and conflict handling.
   {
-    op: 'fork', // placeholder op — button is disabled, click is blocked
+    op: 'fork',
     icon: Scissors,
     label: 'Cherry Pick',
     desc: 'Coming soon',

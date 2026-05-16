@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
 import { Copy, Check, X } from 'lucide-react';
 import { Message } from '@/lib/types';
+import { useCopyToClipboard } from '@/lib/hooks';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import { KaiLogo } from './KaiLogo';
 
@@ -17,18 +17,9 @@ interface MessageBubbleProps {
 
 export function MessageBubble({ message, isStreaming }: MessageBubbleProps) {
   const isUser = message.role === 'user';
-  const [copyState, setCopyState] = useState<'idle' | 'copied' | 'error'>('idle');
+  const [copyState, copy] = useCopyToClipboard();
 
-  const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(message.content!);
-      setCopyState('copied');
-      setTimeout(() => setCopyState('idle'), 2000);
-    } catch {
-      setCopyState('error');
-      setTimeout(() => setCopyState('idle'), 2000);
-    }
-  };
+  const handleCopy = () => copy(message.content!);
 
   if (isUser) {
     return (

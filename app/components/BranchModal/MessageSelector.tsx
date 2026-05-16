@@ -41,13 +41,6 @@ export function MessageSelector({
           </span>
         </div>
         <div className="flex items-center gap-1.5">
-          {/*
-            AI Pick — not yet implemented.
-            Idea: POST all messages from the active branch to a dedicated API endpoint,
-            optionally with a user-provided preference string (e.g. "focus on the auth discussion").
-            The AI returns the message IDs it considers most relevant for the branch context.
-            Needs: a new Lambda/API route, prompt design, and a preference input UI.
-          */}
           <button
             disabled
             title="Coming soon"
