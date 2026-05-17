@@ -54,13 +54,12 @@ Update this file whenever a feature is implemented or a backend contract changes
 
 ---
 
-### Spending Tab — All Data Hardcoded
-**Status:** Hardcoded — all billing data is static; no API is wired up
+### Spending Tab — Billing Data Still Hardcoded
+**Status:** Partially implemented — usage stats (`estimatedCostUsd`, token counts, model breakdown) now come from `api.getUsageStats()`. The following remain hardcoded:
 **Location:** `app/components/settings/SpendingTab.tsx`
 **Breakdown:**
 - `INVOICES` — hardcoded invoice list; needs `GET /billing/invoices`
 - `PLANS` — hardcoded plan definitions with `current` flag baked in; `current` should derive from `user.plan` via `useAuthStore`; plan catalogue should come from `GET /billing/plans` or config
-- `currentUsage` (`18.4`) — hardcoded spend figure; needs `GET /billing/usage/current-month`
 - Payment method (`Visa ending in 4242`, `Expires 08/2028`) — hardcoded; needs `GET /billing/payment-methods`
 - Renewal date (`June 1, 2026`) — hardcoded; should come from subscription API
 **Needs:** Billing API endpoints; wire into component on mount

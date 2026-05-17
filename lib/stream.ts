@@ -7,6 +7,10 @@ interface StreamParams {
   prompt: string;
   sessionId: string;
   branchId: string | null;
+  apiKey?: string | null;
+  provider?: 'anthropic' | 'gemini' | null;
+  model?: string | null;
+  systemPrompt?: string | null;
 }
 
 interface StreamCallbacks {
@@ -37,9 +41,13 @@ export async function streamChat(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        prompt: params.prompt,
+        prompt:    params.prompt,
         sessionId: params.sessionId,
-        branchId: params.branchId,
+        branchId:  params.branchId,
+        ...(params.apiKey       && { apiKey:       params.apiKey }),
+        ...(params.provider     && { provider:     params.provider }),
+        ...(params.model        && { model:        params.model }),
+        ...(params.systemPrompt && { systemPrompt: params.systemPrompt }),
       }),
       signal: combinedSignal,
     });

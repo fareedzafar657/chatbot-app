@@ -6,6 +6,65 @@ import { streamChat } from './stream';
 
 const GENERIC_ERROR = 'Something went wrong. Please try again.';
 
+// ── AI config persistence ─────────────────────────────────────────────────────
+
+const AI_CONFIG_KEY      = 'kai_ai_config';
+const AI_ANTHROPIC_KEY   = 'kai_anthropic_key';
+const AI_GEMINI_KEY      = 'kai_gemini_key';
+
+interface PersistedAiConfig {
+  userProvider:     'anthropic' | 'gemini' | null;
+  userModel:        string | null;
+  userSystemPrompt: string | null;
+}
+
+interface AiConfigSlice {
+  userAnthropicKey: string | null;
+  userGeminiKey:    string | null;
+  userProvider:     'anthropic' | 'gemini' | null;
+  userModel:        string | null;
+  userSystemPrompt: string | null;
+}
+
+function loadAiConfig(): AiConfigSlice {
+  if (typeof window === 'undefined') {
+    return { userAnthropicKey: null, userGeminiKey: null, userProvider: null, userModel: null, userSystemPrompt: null };
+  }
+  try {
+    const cfg          = JSON.parse(localStorage.getItem(AI_CONFIG_KEY) ?? 'null') as PersistedAiConfig | null;
+    const anthropicKey = localStorage.getItem(AI_ANTHROPIC_KEY);
+    const geminiKey    = localStorage.getItem(AI_GEMINI_KEY);
+    return {
+      userAnthropicKey: anthropicKey ?? null,
+      userGeminiKey:    geminiKey    ?? null,
+      userProvider:     cfg?.userProvider     ?? null,
+      userModel:        cfg?.userModel        ?? null,
+      userSystemPrompt: cfg?.userSystemPrompt ?? null,
+    };
+  } catch {
+    return { userAnthropicKey: null, userGeminiKey: null, userProvider: null, userModel: null, userSystemPrompt: null };
+  }
+}
+
+function persistAiConfig(state: AiConfigSlice) {
+  const cfg: PersistedAiConfig = {
+    userProvider:     state.userProvider,
+    userModel:        state.userModel,
+    userSystemPrompt: state.userSystemPrompt,
+  };
+  localStorage.setItem(AI_CONFIG_KEY, JSON.stringify(cfg));
+  if (state.userAnthropicKey) {
+    localStorage.setItem(AI_ANTHROPIC_KEY, state.userAnthropicKey);
+  } else {
+    localStorage.removeItem(AI_ANTHROPIC_KEY);
+  }
+  if (state.userGeminiKey) {
+    localStorage.setItem(AI_GEMINI_KEY, state.userGeminiKey);
+  } else {
+    localStorage.removeItem(AI_GEMINI_KEY);
+  }
+}
+
 function genTempId(): string {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
     return crypto.randomUUID();
@@ -30,6 +89,11 @@ interface ChatState {
   errorMessage: string | null;
   hasMoreSessions: boolean;
   sessionsCursor: string | null;
+  userAnthropicKey: string | null;
+  userGeminiKey: string | null;
+  userProvider: 'anthropic' | 'gemini' | null;
+  userModel: string | null;
+  userSystemPrompt: string | null;
 }
 
 interface ChatActions {
@@ -50,6 +114,13 @@ interface ChatActions {
   autoSelectMessages(): string[];
   cherryPickBranch(selectedMsgIds: string[], branchName: string): void;
   dismissError(): void;
+  setAiConfig(cfg: {
+    anthropicKey?: string | null;
+    geminiKey?: string | null;
+    provider?: 'anthropic' | 'gemini' | null;
+    model?: string | null;
+    systemPrompt?: string | null;
+  }): void;
 }
 
 export type ChatStore = ChatState & ChatActions;
@@ -72,6 +143,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   errorMessage: null,
   hasMoreSessions: false,
   sessionsCursor: null,
+  ...loadAiConfig(),
 
   // ── Session management ────────────────────────────────────────────────────
 
@@ -340,7 +412,15 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
     try {
       await streamChat(
-        { prompt, sessionId: activeSessionId, branchId: activeBranchId },
+        {
+          prompt,
+          sessionId:    activeSessionId,
+          branchId:     activeBranchId,
+          apiKey:       get().userProvider === 'anthropic' ? get().userAnthropicKey : get().userProvider === 'gemini' ? get().userGeminiKey : null,
+          provider:     get().userProvider,
+          model:        get().userModel,
+          systemPrompt: get().userSystemPrompt,
+        },
         {
           onMetadata: (sId, bId) => {
             realSessionId = sId;
@@ -496,6 +576,22 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   toggleBranchModal: (show) => set({ showBranchModal: show }),
 
   dismissError: () => set({ errorMessage: null }),
+
+  // ── AI config ─────────────────────────────────────────────────────────────
+
+  setAiConfig: (cfg) => {
+    set((state) => {
+      const next: AiConfigSlice = {
+        userAnthropicKey: cfg.anthropicKey !== undefined ? cfg.anthropicKey : state.userAnthropicKey,
+        userGeminiKey:    cfg.geminiKey    !== undefined ? cfg.geminiKey    : state.userGeminiKey,
+        userProvider:     cfg.provider     !== undefined ? cfg.provider     : state.userProvider,
+        userModel:        cfg.model        !== undefined ? cfg.model        : state.userModel,
+        userSystemPrompt: cfg.systemPrompt !== undefined ? cfg.systemPrompt : state.userSystemPrompt,
+      };
+      persistAiConfig(next);
+      return next;
+    });
+  },
 }));
 
 // ── Selector hooks ────────────────────────────────────────────────────────────

@@ -4,6 +4,7 @@ import { useRef, useEffect, useState } from 'react';
 import { ArrowUp, Square, GitBranch } from 'lucide-react';
 import { useChatStore, useActiveMessages } from '@/lib/store';
 import { cn } from '@/lib/cn';
+import { AiConfigPopover } from './AiConfigPopover';
 
 export function MessageInput() {
   const sendMessage       = useChatStore((s) => s.sendMessage);
@@ -65,6 +66,11 @@ export function MessageInput() {
           >
             <GitBranch className="w-4 h-4" />
           </button>
+
+          {/* AI config */}
+          <div className="flex-shrink-0 mb-0.5">
+            <AiConfigPopover />
+          </div>
 
           {/* Input */}
           <textarea

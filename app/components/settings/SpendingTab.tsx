@@ -1,18 +1,24 @@
 'use client';
 
-import { useState } from 'react';
-import { CreditCard, Download, Check, AlertCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { CreditCard, Download, Check, AlertCircle, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/cn';
+import { api } from '@/lib/api';
+import { type UsageStats } from '@/lib/types';
 import { Section } from './Section';
+
+// ─── Hardcoded billing history (no billing API yet) ───────────────────────────
+// BACKLOG: Replace with real invoice API when billing is implemented.
 
 const INVOICES = [
   { id: 'inv-1', date: 'May 1, 2026', amount: '$20.00', status: 'Upcoming', plan: 'Pro Plan' },
-  { id: 'inv-2', date: 'Apr 1, 2026', amount: '$18.40', status: 'Paid', plan: 'Pro Plan' },
-  { id: 'inv-3', date: 'Mar 1, 2026', amount: '$20.00', status: 'Paid', plan: 'Pro Plan' },
-  { id: 'inv-4', date: 'Feb 1, 2026', amount: '$20.00', status: 'Paid', plan: 'Pro Plan' },
-  { id: 'inv-5', date: 'Jan 1, 2026', amount: '$16.80', status: 'Paid', plan: 'Pro Plan' },
+  { id: 'inv-2', date: 'Apr 1, 2026', amount: '$18.40', status: 'Paid',     plan: 'Pro Plan' },
+  { id: 'inv-3', date: 'Mar 1, 2026', amount: '$20.00', status: 'Paid',     plan: 'Pro Plan' },
+  { id: 'inv-4', date: 'Feb 1, 2026', amount: '$20.00', status: 'Paid',     plan: 'Pro Plan' },
+  { id: 'inv-5', date: 'Jan 1, 2026', amount: '$16.80', status: 'Paid',     plan: 'Pro Plan' },
 ];
 
+// BACKLOG: Replace with real plan/subscription API when billing is implemented.
 const PLANS = [
   {
     name: 'Free',
@@ -34,14 +40,43 @@ const PLANS = [
   },
 ];
 
+// ─── Main component ───────────────────────────────────────────────────────────
+
 export function SpendingTab() {
   const [limit, setLimit] = useState(50);
   const [alertEnabled, setAlertEnabled] = useState(true);
-  const currentUsage = 18.4;
-  const percentUsed = (currentUsage / limit) * 100;
+
+  const [stats,   setStats]   = useState<UsageStats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error,   setError]   = useState(false);
+
+  useEffect(() => {
+    api.getUsageStats()
+      .then(setStats)
+      .catch(() => setError(true))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const currentUsage = stats?.estimatedCostUsd ?? null;
+  const percentUsed  = currentUsage !== null ? (currentUsage / limit) * 100 : 0;
+
+  function renderUsageAmount() {
+    if (loading)              return <Loader2 className="w-4 h-4 animate-spin text-gray-400" />;
+    if (error)                return <span className="text-[12px] text-red-500">Failed to load</span>;
+    if (currentUsage === null) return null;
+    return (
+      <>
+        <span className="text-[18px] font-bold text-gray-900">
+          ${currentUsage.toFixed(4)}
+        </span>
+        <div className="text-[11px] text-gray-500">of ${limit} limit</div>
+      </>
+    );
+  }
 
   return (
     <div>
+      {/* Current Plan */}
       <Section title="Current Plan" description="Manage your subscription and billing.">
         <div className="grid grid-cols-3 gap-3 mb-4">
           {PLANS.map((plan) => (
@@ -92,6 +127,7 @@ export function SpendingTab() {
         </div>
       </Section>
 
+      {/* Payment Method */}
       <Section title="Payment Method" description="Your current payment method on file.">
         <div className="flex items-center gap-3 p-4 rounded-xl border border-gray-200 bg-white mb-3">
           <div className="w-10 h-7 rounded-md bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center flex-shrink-0">
@@ -110,11 +146,13 @@ export function SpendingTab() {
         </button>
       </Section>
 
+      {/* Spending Limit */}
       <Section
         title="Spending Limit"
         description="Set a monthly spending cap to avoid unexpected charges."
       >
         <div className="space-y-4">
+          {/* Usage bar */}
           <div className="p-4 rounded-xl border border-gray-200 bg-white">
             <div className="flex items-center justify-between mb-3">
               <div>
@@ -124,10 +162,7 @@ export function SpendingTab() {
                 <div className="text-[11px] text-gray-500 mt-0.5">May 1 – May 31, 2026</div>
               </div>
               <div className="text-right">
-                <span className="text-[18px] font-bold text-gray-900">
-                  ${currentUsage.toFixed(2)}
-                </span>
-                <div className="text-[11px] text-gray-500">of ${limit} limit</div>
+                {renderUsageAmount()}
               </div>
             </div>
             <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
@@ -136,14 +171,60 @@ export function SpendingTab() {
                 style={{ width: `${Math.min(percentUsed, 100)}%` }}
               />
             </div>
-            <div className="flex items-center justify-between mt-1.5">
-              <span className="text-[11px] text-gray-400">${currentUsage.toFixed(2)} used</span>
-              <span className="text-[11px] text-gray-400">
-                ${(limit - currentUsage).toFixed(2)} remaining
-              </span>
-            </div>
+            {currentUsage !== null && (
+              <div className="flex items-center justify-between mt-1.5">
+                <span className="text-[11px] text-gray-400">${currentUsage.toFixed(4)} used</span>
+                <span className="text-[11px] text-gray-400">
+                  ${Math.max(0, limit - currentUsage).toFixed(4)} remaining
+                </span>
+              </div>
+            )}
           </div>
 
+          {/* Token stats */}
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              { label: 'Messages',      value: stats?.totalMessages },
+              { label: 'Input tokens',  value: stats?.totalInputTokens },
+              { label: 'Output tokens', value: stats?.totalOutputTokens },
+            ].map(({ label, value }) => (
+              <div key={label} className="p-3 rounded-xl border border-gray-200 bg-white text-center">
+                <div className="text-[18px] font-bold text-gray-900">
+                  {loading ? <Loader2 className="w-4 h-4 animate-spin text-gray-400 mx-auto" /> :
+                   error   ? '—' :
+                             value!.toLocaleString()}
+                </div>
+                <div className="text-[11px] text-gray-500 mt-0.5">{label}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Model breakdown */}
+          {!loading && !error && stats && stats.modelBreakdown.length > 0 && (
+            <div className="p-4 rounded-xl border border-gray-200 bg-white">
+              <div className="text-[12px] font-semibold text-gray-700 mb-3">By model</div>
+              <div className="space-y-2.5">
+                {stats.modelBreakdown.map((m) => (
+                  <div key={m.modelId}>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[12px] text-gray-700 font-mono">{m.modelId}</span>
+                      <span className="text-[11px] text-gray-500">
+                        {m.tokenCount.toLocaleString()} tokens · {m.percentage.toFixed(1)}%
+                      </span>
+                    </div>
+                    <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-violet-400 rounded-full"
+                        style={{ width: `${m.percentage}%` }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Limit slider */}
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="text-[13px] font-medium text-gray-700">Monthly limit</label>
@@ -152,9 +233,7 @@ export function SpendingTab() {
                 <input
                   type="number"
                   value={limit}
-                  onChange={(e) =>
-                    setLimit(Math.max(0, parseInt(e.target.value) || 0))
-                  }
+                  onChange={(e) => setLimit(Math.max(0, parseInt(e.target.value) || 0))}
                   className="w-16 px-2 py-1 text-[13px] font-medium border border-gray-200 rounded-lg bg-white text-center outline-none focus:border-violet-400 transition-all"
                 />
               </div>
@@ -174,6 +253,7 @@ export function SpendingTab() {
             </div>
           </div>
 
+          {/* Spending alert toggle */}
           <div className={cn(
             'flex items-start gap-3 p-3 rounded-xl border transition-all',
             alertEnabled ? 'border-amber-200 bg-amber-50' : 'border-gray-200 bg-gray-50'
@@ -204,6 +284,7 @@ export function SpendingTab() {
         </div>
       </Section>
 
+      {/* Billing History */}
       <Section title="Billing History" description="Download past invoices for your records.">
         <div className="rounded-xl border border-gray-200 overflow-hidden">
           <table className="w-full">

@@ -157,7 +157,7 @@ function SettingsSidebarMiddle() {
       {/* Back button */}
       <div className="px-3 mb-5">
         <button
-          onClick={() => router.push('/chat')}
+          onClick={() => router.push('/new')}
           className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-[13px] text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-all font-medium"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
