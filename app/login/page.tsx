@@ -72,7 +72,7 @@ export default function LoginPage() {
 
   // Redirect already-authenticated users away from the login page
   useEffect(() => {
-    if (!isLoading && user) router.replace('/chat');
+    if (!isLoading && user) router.replace('/new');
   }, [isLoading, user, router]);
 
   // Don't render the form while session is being restored — prevents flash
@@ -110,7 +110,7 @@ export default function LoginPage() {
         setMode('confirm');
       } else {
         await login(email, password);
-        router.replace('/chat');
+        router.replace('/new');
       }
     } catch (err) {
       setError(cognitoMessage(err));
