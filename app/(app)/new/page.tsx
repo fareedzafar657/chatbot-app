@@ -4,6 +4,7 @@ import { useRef, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowUp } from 'lucide-react';
 import { EmptyState } from '@/app/components/chat/EmptyState';
+import { AiConfigPopover } from '@/app/components/chat/ai-config-popover/AiConfigPopover';
 import { useChatStore } from '@/lib/store';
 import { cn } from '@/lib/cn';
 
@@ -39,6 +40,11 @@ function NewChatInput({ onSend }: NewChatInputProps) {
     <div className="flex-shrink-0 border-t border-gray-100 bg-white px-4 py-4">
       <div className="max-w-[740px] mx-auto">
         <div className="flex items-end gap-2 bg-[#F7F7F9] rounded-2xl px-4 py-3 border border-gray-200 focus-within:border-gray-300 focus-within:shadow-sm transition-all duration-150">
+          {/* AI config */}
+          <div className="flex-shrink-0 mb-0.5">
+            <AiConfigPopover />
+          </div>
+
           {/* Input */}
           <textarea
             ref={textareaRef}

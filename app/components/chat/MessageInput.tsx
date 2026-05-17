@@ -4,7 +4,7 @@ import { useRef, useEffect, useState } from 'react';
 import { ArrowUp, Square, GitBranch } from 'lucide-react';
 import { useChatStore, useActiveMessages } from '@/lib/store';
 import { cn } from '@/lib/cn';
-import { AiConfigPopover } from './AiConfigPopover';
+import { AiConfigPopover } from './ai-config-popover/AiConfigPopover';
 
 export function MessageInput() {
   const sendMessage       = useChatStore((s) => s.sendMessage);
