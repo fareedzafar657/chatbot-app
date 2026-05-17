@@ -4,7 +4,7 @@ import { useEffect, useRef } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useChatStore } from '@/lib/store';
 import { ChatWindow } from '@/app/components/ChatWindow';
-import { BranchModal } from '@/app/components/BranchModal';
+import { BranchModal } from '@/app/components/branch-modal';
 import { PageLoader } from '@/app/components/common/PageLoader';
 
 export default function SessionPage() {

@@ -15,7 +15,7 @@ import { SessionItem } from '@/app/components/SessionItem';
 import { type Session } from '@/lib/types';
 import {
   SettingsTabProvider, useSettingsTab, type SettingsTab,
-} from './settingsTabContext';
+} from './settings-tab-context';
 
 // ── Settings tab config ────────────────────────────────────────────────────────
 

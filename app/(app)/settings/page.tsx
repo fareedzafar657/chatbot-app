@@ -1,13 +1,13 @@
 'use client';
 
-import { useSettingsTab } from '@/app/(app)/settingsTabContext';
+import { useSettingsTab } from '@/app/(app)/settings-tab-context';
 import { SETTINGS_TABS } from '@/app/(app)/layout';
 import { GeneralTab } from '@/app/components/settings/GeneralTab';
 import { SecurityTab } from '@/app/components/settings/SecurityTab';
 import { UsageTab } from '@/app/components/settings/UsageTab';
 import { SpendingTab } from '@/app/components/settings/SpendingTab';
 import { AppearanceTab } from '@/app/components/settings/AppearanceTab';
-import { type SettingsTab } from '@/app/(app)/settingsTabContext';
+import { type SettingsTab } from '@/app/(app)/settings-tab-context';
 
 // ── Tab content map ────────────────────────────────────────────────────────────
 
