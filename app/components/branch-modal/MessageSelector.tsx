@@ -1,7 +1,7 @@
 'use client';
 
 import { Sparkles, User, Check } from 'lucide-react';
-import { Message } from '@/lib/types';
+import { Message } from '@/shared/types';
 import { KaiLogo } from '../KaiLogo';
 import { cn } from '@/lib/cn';
 

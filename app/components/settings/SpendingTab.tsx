@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { CreditCard, Download, Check, AlertCircle, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { api } from '@/lib/api';
-import { type UsageStats } from '@/lib/types';
+import { type UsageStats } from '@/shared/types';
 import { Section } from './Section';
 
 // ─── Hardcoded billing history (no billing API yet) ───────────────────────────

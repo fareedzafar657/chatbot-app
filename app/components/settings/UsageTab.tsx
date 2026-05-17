@@ -13,7 +13,7 @@ import {
 import { MessageSquare, Zap, DollarSign, Download, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { api } from '@/lib/api';
-import type { UsageStats, DailyUsage } from '@/lib/types';
+import type { UsageStats, DailyUsage } from '@/shared/types';
 
 const MODEL_COLORS = ['#6366F1', '#8B5CF6', '#A78BFA', '#C4B5FD'];
 const PERIODS = ['Last 7 days', 'Last 30 days', 'Last 3 months'];

@@ -12,7 +12,7 @@ import { SidebarShell } from '@/app/components/SidebarShell';
 import { PageLoader } from '@/app/components/common/PageLoader';
 import { Spinner } from '@/app/components/common/Spinner';
 import { SessionItem } from '@/app/components/SessionItem';
-import { type Session } from '@/lib/types';
+import { type Session } from '@/shared/types';
 import {
   SettingsTabProvider, useSettingsTab, type SettingsTab,
 } from './settings-tab-context';

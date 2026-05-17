@@ -13,7 +13,7 @@ import ReactFlow, {
   applyNodeChanges,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { Branch } from '@/lib/types';
+import { Branch } from '@/shared/types';
 import { cn } from '@/lib/cn';
 
 // ── Node dimensions — kept here so layout math stays in sync with rendering ──

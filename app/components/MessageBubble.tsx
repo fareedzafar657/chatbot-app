@@ -1,7 +1,7 @@
 'use client';
 
 import { Copy, Check, X } from 'lucide-react';
-import { Message } from '@/lib/types';
+import { Message } from '@/shared/types';
 import { useCopyToClipboard } from '@/lib/hooks';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import { KaiLogo } from './KaiLogo';

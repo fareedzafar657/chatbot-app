@@ -2,7 +2,7 @@
 
 import { useState, useMemo, ReactNode } from 'react';
 import { ArrowUpDown, GitBranch, Check } from 'lucide-react';
-import { Branch } from '@/lib/types';
+import { Branch } from '@/shared/types';
 import { cn } from '@/lib/cn';
 type SortKey = 'name' | 'created' | 'messages';
 type SortDir = 'asc' | 'desc';

@@ -8,7 +8,7 @@ import { KaiLogo } from '../KaiLogo';
 import { MessageSelector } from './MessageSelector';
 import { OperationsPanel } from './OperationsPanel';
 import { RightPanel } from './RightPanel';
-import { Operation, RightTab } from './types';
+import { Operation, RightTab } from '@/shared/branch-modal';
 
 export function BranchModal() {
   const toggleBranchModal  = useChatStore((s) => s.toggleBranchModal);

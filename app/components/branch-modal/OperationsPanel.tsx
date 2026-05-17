@@ -1,6 +1,6 @@
 'use client';
 
-import { Operation, OP_BUTTONS } from './types';
+import { Operation, OP_BUTTONS } from '@/shared/branch-modal';
 import { cn } from '@/lib/cn';
 
 interface OperationsPanelProps {

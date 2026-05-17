@@ -1,10 +1,10 @@
 'use client';
 
 import { GitBranch, List } from 'lucide-react';
-import { Branch } from '@/lib/types';
+import { Branch } from '@/shared/types';
 import { BranchTree } from '../BranchTree';
 import { BranchVersionsView } from '../BranchVersionsView';
-import { RightTab, RIGHT_TABS } from './types';
+import { RightTab, RIGHT_TABS } from '@/shared/branch-modal';
 import { cn } from '@/lib/cn';
 
 const TAB_ICONS: Record<RightTab, React.ElementType> = {
