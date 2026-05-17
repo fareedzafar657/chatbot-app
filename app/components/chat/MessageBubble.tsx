@@ -4,7 +4,7 @@ import { Copy, Check, X } from 'lucide-react';
 import { Message } from '@/shared/types';
 import { useCopyToClipboard } from '@/lib/hooks';
 import { MarkdownRenderer } from './MarkdownRenderer';
-import { KaiLogo } from './KaiLogo';
+import { KaiLogo } from '../common/KaiLogo';
 
 function formatTime(dateStr: string): string {
   return new Date(dateStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });

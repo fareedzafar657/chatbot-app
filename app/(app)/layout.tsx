@@ -8,10 +8,10 @@ import {
 import { cn } from '@/lib/cn';
 import { useAuthStore } from '@/lib/authStore';
 import { useChatStore } from '@/lib/store';
-import { SidebarShell } from '@/app/components/SidebarShell';
+import { SidebarShell } from '@/app/components/sidebar/SidebarShell';
 import { PageLoader } from '@/app/components/common/PageLoader';
 import { Spinner } from '@/app/components/common/Spinner';
-import { SessionItem } from '@/app/components/SessionItem';
+import { SessionItem } from '@/app/components/sidebar/SessionItem';
 import { type Session } from '@/shared/types';
 import {
   SettingsTabProvider, useSettingsTab, type SettingsTab,

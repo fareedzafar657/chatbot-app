@@ -2,9 +2,9 @@
 
 import { useState } from 'react';
 import { X } from 'lucide-react';
-import { ConfirmDialog } from '../common/ConfirmDialog';
+import { ConfirmDialog } from '../../common/ConfirmDialog';
 import { useChatStore, useActiveSession, useActiveBranch, useActiveMessages } from '@/lib/store';
-import { KaiLogo } from '../KaiLogo';
+import { KaiLogo } from '../../common/KaiLogo';
 import { MessageSelector } from './MessageSelector';
 import { OperationsPanel } from './OperationsPanel';
 import { RightPanel } from './RightPanel';

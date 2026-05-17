@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Eye, EyeOff, ArrowRight, Mail } from 'lucide-react';
 import { useAuthStore } from '@/lib/authStore';
-import { KaiLogo } from '@/app/components/KaiLogo';
+import { KaiLogo } from '@/app/components/common/KaiLogo';
 import { Spinner } from '@/app/components/common/Spinner';
 import { PageLoader } from '@/app/components/common/PageLoader';
 import { cn } from '@/lib/cn';

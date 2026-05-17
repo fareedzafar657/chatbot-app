@@ -1,5 +1,5 @@
 import { type ReactNode } from 'react';
-import { KaiLogo } from './KaiLogo';
+import { KaiLogo } from '../common/KaiLogo';
 import { SidebarUserFooter } from './SidebarUserFooter';
 
 interface SidebarShellProps {

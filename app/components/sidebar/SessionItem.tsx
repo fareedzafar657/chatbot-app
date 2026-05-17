@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { MessageSquare, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { type Session } from '@/shared/types';
-import { ConfirmDialog } from './common/ConfirmDialog';
+import { ConfirmDialog } from '../common/ConfirmDialog';
 
 const DEFAULT_SESSION_TITLE = 'New Conversation';
 

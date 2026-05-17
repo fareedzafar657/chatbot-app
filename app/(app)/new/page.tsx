@@ -3,7 +3,7 @@
 import { useRef, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowUp } from 'lucide-react';
-import { EmptyState } from '@/app/components/EmptyState';
+import { EmptyState } from '@/app/components/chat/EmptyState';
 import { useChatStore } from '@/lib/store';
 import { cn } from '@/lib/cn';
 

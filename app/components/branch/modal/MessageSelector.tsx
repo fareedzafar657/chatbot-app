@@ -2,7 +2,7 @@
 
 import { Sparkles, User, Check } from 'lucide-react';
 import { Message } from '@/shared/types';
-import { KaiLogo } from '../KaiLogo';
+import { KaiLogo } from '../../common/KaiLogo';
 import { cn } from '@/lib/cn';
 
 function truncate(str: string | null, max: number): string {

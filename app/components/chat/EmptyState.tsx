@@ -1,7 +1,7 @@
 'use client';
 
 import { SuggestionChips } from './SuggestionChips';
-import { KaiLogo } from './KaiLogo';
+import { KaiLogo } from '../common/KaiLogo';
 
 export function EmptyState({ onSelect }: { readonly onSelect: (prompt: string) => void }) {
   return (
