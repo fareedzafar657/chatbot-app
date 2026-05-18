@@ -8,7 +8,7 @@ interface OperationsPanelProps {
   opName: string;
   selectedCount: number;
   canExecute: boolean;
-  onStart: (op: 'fork') => void;
+  onStart: (op: 'fork' | 'cherry-pick') => void;
   onCancel: () => void;
   onChangeName: (name: string) => void;
   onExecute: () => void;
@@ -31,7 +31,7 @@ export function OperationsPanel({
           {OP_BUTTONS.map(({ op, icon: Icon, label, desc, colorClass, disabled }) => (
             <button
               key={label}
-              onClick={() => { if (!disabled) onStart(op); }}
+              onClick={() => onStart(op)}
               disabled={disabled}
               title={disabled ? 'Not yet implemented' : undefined}
               className={cn('flex flex-col items-start gap-0.5 p-2.5 rounded-xl border text-left transition-all', colorClass, disabled && 'cursor-not-allowed opacity-60')}

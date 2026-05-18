@@ -87,6 +87,15 @@ export interface ForkBranchRequest {
   label?: string;
 }
 
+export interface CherryPickRequest {
+  source_msg_ids: string[];
+}
+
+export interface CherryPickResponse {
+  branch: Branch;
+  newMessages: Message[];
+}
+
 // ─── Usage stats ──────────────────────────────────────────────────────────────
 
 export interface DailyUsage {

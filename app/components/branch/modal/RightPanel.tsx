@@ -49,19 +49,10 @@ export function RightPanel({
       </div>
 
       <div className="flex-1 p-3 overflow-hidden">
-        {activeTab === 'tree' ? (
-          <BranchTree
-            branches={branches}
-            activeBranchId={activeBranchId}
-            onSwitchBranch={onSwitchBranch}
-          />
-        ) : (
-          <BranchVersionsView
-            branches={branches}
-            activeBranchId={activeBranchId}
-            onSwitchBranch={onSwitchBranch}
-          />
-        )}
+        {({
+          tree:     <BranchTree branches={branches} activeBranchId={activeBranchId} onSwitchBranch={onSwitchBranch} />,
+          versions: <BranchVersionsView branches={branches} activeBranchId={activeBranchId} onSwitchBranch={onSwitchBranch} />,
+        } satisfies Record<RightTab, React.ReactNode>)[activeTab]}
       </div>
     </div>
   );

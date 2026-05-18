@@ -1,4 +1,4 @@
-import type { Message } from './types';
+import type { Message } from '@/shared/types';
 
 const STREAMING_URL = process.env.NEXT_PUBLIC_STREAMING_LAMBDA_URL!;
 const STREAM_TIMEOUT_MS = 30_000;

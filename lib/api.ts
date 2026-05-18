@@ -6,10 +6,12 @@ import type {
   PaginatedSessions,
   PaginatedMessages,
   ForkBranchRequest,
+  CherryPickRequest,
+  CherryPickResponse,
   UpdateSessionRequest,
   PatchMessageRequest,
   UsageStats,
-} from './types';
+} from '@/shared/types';
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL!;
 
@@ -101,10 +103,13 @@ export const api = {
   forkBranch: (data: ForkBranchRequest): Promise<Branch> =>
     client.post('/branches/fork', data).then((r) => r.data),
 
-  listMessages: (branchId: string, cursor?: string): Promise<PaginatedMessages> =>
+  cherryPick: (branchId: string, data: CherryPickRequest): Promise<CherryPickResponse> =>
+    client.post(`/branches/${branchId}/cherry-pick`, data).then((r) => r.data),
+
+  listMessages: (branchId: string, cursor?: string, pageSize = 20): Promise<PaginatedMessages> =>
     client
       .get(`/messages/branch/${branchId}`, {
-        params: { page_size: 50, ...(cursor ? { cursor } : {}) },
+        params: { page_size: pageSize, ...(cursor ? { cursor } : {}) },
       })
       .then((r) => r.data),
 

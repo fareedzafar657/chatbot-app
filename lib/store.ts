@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
-import { Session, Message, Branch } from './types';
+import { Session, Message, Branch } from '@/shared/types';
 import { api } from './api';
 import { streamChat } from './stream';
 
@@ -112,7 +112,7 @@ interface ChatActions {
   forkBranch(selectedMsgIds: string[], label?: string): void;
   setActiveBranch(branchId: string): void;
   autoSelectMessages(): string[];
-  cherryPickBranch(selectedMsgIds: string[], branchName: string): void;
+  cherryPickMessages(sourceMsgIds: string[]): Promise<void>;
   dismissError(): void;
   setAiConfig(cfg: {
     anthropicKey?: string | null;
@@ -301,11 +301,24 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   // Needs: a new Lambda/API route, prompt design, and a preference input UI in MessageSelector.
   autoSelectMessages: () => [],
 
-  // Cherry Pick — not yet implemented.
-  // Idea: let the user browse all branches in the session, select individual messages
-  // from any branch (not just the active one), and append them to the current active branch —
-  // analogous to `git cherry-pick`. Needs a backend API + a branch/message browser UI.
-  cherryPickBranch: () => {},
+  cherryPickMessages: async (sourceMsgIds) => {
+    const { activeBranchId } = get();
+    if (!activeBranchId) return;
+
+    try {
+      const result = await api.cherryPick(activeBranchId, { source_msg_ids: sourceMsgIds });
+
+      set((state) => ({
+        messages: [...state.messages, ...result.newMessages],
+        branches: state.branches.map((b) =>
+          b.branchId === activeBranchId ? result.branch : b
+        ),
+        showBranchModal: false,
+      }));
+    } catch {
+      set({ errorMessage: GENERIC_ERROR });
+    }
+  },
 
   // ── Session CRUD ──────────────────────────────────────────────────────────
 

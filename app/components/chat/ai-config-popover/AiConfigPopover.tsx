@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Settings, Check, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { modelsForProvider, type Provider } from "@/shared/ai-config";

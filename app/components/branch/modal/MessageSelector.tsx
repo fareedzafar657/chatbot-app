@@ -1,8 +1,10 @@
 'use client';
 
-import { Sparkles, User, Check } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Sparkles, User, Check, Search } from 'lucide-react';
 import { Message } from '@/shared/types';
 import { KaiLogo } from '../../common/KaiLogo';
+import { Spinner } from '../../common/Spinner';
 import { cn } from '@/lib/cn';
 
 function truncate(str: string | null, max: number): string {
@@ -17,6 +19,9 @@ interface MessageSelectorProps {
   onToggle: (id: string) => void;
   onSelectAll: () => void;
   onSelectNone: () => void;
+  hasMore?: boolean;
+  isLoadingMore?: boolean;
+  onLoadMore?: () => void;
 }
 
 export function MessageSelector({
@@ -26,32 +31,58 @@ export function MessageSelector({
   onToggle,
   onSelectAll,
   onSelectNone,
+  hasMore = false,
+  isLoadingMore = false,
+  onLoadMore,
 }: MessageSelectorProps) {
   const selectedCount = selectedIds.size;
   const hasInvalidFirst = selectedCount > 0 && firstSelectedRole === 'assistant';
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedQuery(searchQuery), 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const filtered = debouncedQuery
+    ? messages.filter((m) => m.content?.toLowerCase().includes(debouncedQuery.toLowerCase()))
+    : messages;
 
   return (
     <div className="flex flex-col flex-1 min-h-0">
-      {/* Header */}
-      <div className="px-4 py-3 border-b border-gray-50 flex items-center justify-between flex-shrink-0">
-        <div className="flex items-center gap-2">
-          <span className="text-[12px] font-semibold text-gray-700">Context Messages</span>
-          <span className="text-[11px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">
-            {selectedCount}/{messages.length}
-          </span>
+      {/* Header with search */}
+      <div className="px-4 py-3 border-b border-gray-50 space-y-3 flex-shrink-0">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-[12px] font-semibold text-gray-700">Context Messages</span>
+            <span className="text-[11px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">
+              {selectedCount}/{filtered.length}
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <button
+              disabled
+              title="Coming soon"
+              className="flex items-center gap-1 text-[11px] font-medium bg-gray-50 px-2 py-1 rounded-md text-gray-400 cursor-not-allowed opacity-60"
+            >
+              <Sparkles className="w-3 h-3" />
+              AI Pick
+            </button>
+            <button onClick={onSelectAll} className="text-[11px] text-violet-500 hover:text-violet-700 font-medium">All</button>
+            <span className="text-gray-300">·</span>
+            <button onClick={onSelectNone} className="text-[11px] text-gray-400 hover:text-gray-600 font-medium">None</button>
+          </div>
         </div>
-        <div className="flex items-center gap-1.5">
-          <button
-            disabled
-            title="Coming soon"
-            className="flex items-center gap-1 text-[11px] font-medium bg-gray-50 px-2 py-1 rounded-md text-gray-400 cursor-not-allowed opacity-60"
-          >
-            <Sparkles className="w-3 h-3" />
-            AI Pick
-          </button>
-          <button onClick={onSelectAll} className="text-[11px] text-violet-500 hover:text-violet-700 font-medium">All</button>
-          <span className="text-gray-300">·</span>
-          <button onClick={onSelectNone} className="text-[11px] text-gray-400 hover:text-gray-600 font-medium">None</button>
+        <div className="relative">
+          <Search className="absolute left-2.5 top-2.5 w-4 h-4 text-gray-400" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search messages…"
+            className="w-full pl-8 pr-3 py-1.5 text-[12px] bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-gray-300 focus:bg-white transition-all"
+          />
         </div>
       </div>
 
@@ -59,8 +90,10 @@ export function MessageSelector({
       <div className="flex-1 overflow-y-auto py-2 px-3 space-y-1 min-h-0">
         {messages.length === 0 ? (
           <div className="text-center py-10 text-[13px] text-gray-400">No messages in this branch</div>
+        ) : filtered.length === 0 ? (
+          <div className="text-center py-10 text-[13px] text-gray-400">No matches in messages</div>
         ) : (
-          messages.map((msg, i) => {
+          filtered.map((msg, i) => {
             const isSelected = selectedIds.has(msg.msgId);
             const isUser = msg.role === 'user';
             const isFirstSelected = isSelected && messages.find(m => selectedIds.has(m.msgId))?.msgId === msg.msgId;
@@ -109,6 +142,20 @@ export function MessageSelector({
           })
         )}
       </div>
+
+      {/* See More button */}
+      {hasMore && !debouncedQuery && (
+        <div className="px-4 py-2 border-t border-gray-50 flex-shrink-0">
+          <button
+            onClick={onLoadMore}
+            disabled={isLoadingMore}
+            className="w-full py-2 text-center text-[11px] text-gray-600 hover:bg-gray-100 rounded transition-colors disabled:opacity-50 flex items-center justify-center gap-1"
+          >
+            {isLoadingMore && <Spinner className="w-3 h-3" />}
+            {isLoadingMore ? 'Loading...' : 'See More'}
+          </button>
+        </div>
+      )}
 
       {/* Validation warning */}
       {hasInvalidFirst && (

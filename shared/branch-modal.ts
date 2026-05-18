@@ -2,10 +2,10 @@ import { type ElementType } from 'react';
 import { GitBranch, Scissors } from 'lucide-react';
 
 export type RightTab = 'tree' | 'versions';
-export type Operation = 'fork' | null;
+export type Operation = 'fork' | 'cherry-pick' | null;
 
 export interface OperationButton {
-  op: 'fork';
+  op: 'fork' | 'cherry-pick';
   icon: ElementType;
   label: string;
   desc: string;
@@ -22,12 +22,11 @@ export const OP_BUTTONS: OperationButton[] = [
     colorClass: 'bg-violet-50 border-violet-200 text-violet-700 hover:bg-violet-100',
   },
   {
-    op: 'fork',
+    op: 'cherry-pick',
     icon: Scissors,
     label: 'Cherry Pick',
-    desc: 'Coming soon',
-    colorClass: 'bg-gray-50 border-gray-200 text-gray-400',
-    disabled: true,
+    desc: 'Append messages from any branch',
+    colorClass: 'bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100',
   },
 ];
 
