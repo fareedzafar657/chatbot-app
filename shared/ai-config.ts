@@ -1,4 +1,3 @@
-// AI provider model lists, prompt suggestions, and model-availability probing.
 // No React — safe to import from server components or pure utils.
 
 // ─── Model definitions ────────────────────────────────────────────────────────
@@ -6,22 +5,10 @@
 
 export const BEDROCK_MODELS = [
   {
-    value: "",
-    label: "Nova Micro",
-    note: "Fastest · $0.035/$0.14 per 1M",
-    disabled: false,
-  },
-  {
-    value: "amazon.nova-lite-v1:0",
-    label: "Nova Lite",
-    note: "Coming soon",
-    disabled: true,
-  },
-  {
     value: "us.amazon.nova-pro-v1:0",
     label: "Nova Pro",
-    note: "Coming soon",
-    disabled: true,
+    note: "Balanced · $0.80/$3.20 per 1M",
+    disabled: false,
   },
 ] as const;
 
@@ -91,8 +78,6 @@ export const PROMPT_SUGGESTIONS = [
 ] as const;
 
 // ─── Model availability probing ───────────────────────────────────────────────
-// Adaptor pattern: each provider exposes the same probe interface.
-// Anthropic: GET /v1/models returns all accessible model IDs for the key.
 // Gemini: no list endpoint — probe each model with a minimal 1-token request.
 
 export type ModelAvailability = Record<string, "available" | "unavailable">;

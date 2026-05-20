@@ -159,8 +159,7 @@ export function BranchTree({ branches, activeBranchId, onSwitchBranch }: BranchT
 
   const [nodes, setNodes] = useState(layoutNodes);
 
-  // Reset positions when the branch list changes (new fork, delete, etc.)
-  // but not when only active state or callbacks change — those update data in-place below.
+  // Only branch structure in deps — isActive and callbacks update in-place below without resetting positions
   useEffect(() => {
     setNodes(layoutNodes);
   // eslint-disable-next-line react-hooks/exhaustive-deps

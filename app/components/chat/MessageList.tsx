@@ -12,7 +12,6 @@ interface MessageListProps {
   onLoadMore: () => void;
 }
 
-// Alternating skeleton shapes to mimic assistant / user / assistant bubble layout
 const SKELETON_SHAPES = [
   { align: 'gap-3',       avatar: true,  bubble: 'h-16 flex-1 max-w-[60%]' },
   { align: 'justify-end', avatar: false, bubble: 'h-10 w-48'               },

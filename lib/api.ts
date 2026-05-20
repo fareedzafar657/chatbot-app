@@ -41,7 +41,6 @@ function transformKeys(obj: unknown): unknown {
 
 const client = axios.create({ baseURL: BASE_URL, timeout: 20000 });
 
-// Attach Cognito access token to every request
 client.interceptors.request.use(async (config) => {
   const { useAuthStore } = await import('./authStore');
   const token = await useAuthStore.getState().getAccessToken();
@@ -49,7 +48,6 @@ client.interceptors.request.use(async (config) => {
   return config;
 });
 
-// Transform all responses from snake_case → camelCase + global 401 handler
 client.interceptors.response.use(
   (res) => {
     res.data = transformKeys(res.data);

@@ -9,7 +9,6 @@ interface KaiLogoProps {
 export function KaiLogo({ size = 32 }: KaiLogoProps) {
   const uid = useId().replace(/:/g, '');
 
-  // Head silhouette path (profile facing right, 100x100 viewBox)
   const headPath = `
     M 44 80 L 44 70
     C 37 65 26 57 24 47
@@ -38,7 +37,6 @@ export function KaiLogo({ size = 32 }: KaiLogoProps) {
           <stop offset="100%" stopColor="#7DD3FC" stopOpacity="0.7" />
         </linearGradient>
 
-        {/* Clip to head silhouette for circuit lines */}
         <clipPath id={`clip-${uid}`}>
           <path d={headPath} />
         </clipPath>
@@ -105,7 +103,7 @@ export function KaiWordmark({ size = 32, showCompany = false }: { size?: number;
         </div>
         {showCompany && (
           <div className="text-gray-400" style={{ fontSize: size * 0.3, fontWeight: 400, lineHeight: 1.1 }}>
-            by Wondering Kaslana
+            by Fareed Z.
           </div>
         )}
       </div>

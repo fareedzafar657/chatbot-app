@@ -38,8 +38,6 @@ export function MessageSelector({
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
 
-  // Clicking either side of a compaction group (summary ↔ originals) swaps the selection:
-  // if the "other side" is already selected, replace it with the clicked item.
   const handleCompactionGroupToggle = (thisId: string, counterpartIds: string[]) => {
     if (selectedIds.has(thisId)) {
       onToggle(thisId);

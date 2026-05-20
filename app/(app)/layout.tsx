@@ -301,7 +301,6 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
     if (!isLoading && !user) router.replace("/login");
   }, [isLoading, user, router]);
 
-  // Bootstrap sessions once after auth resolves
   useEffect(() => {
     if (!isLoading && user) initSessions();
     // eslint-disable-next-line react-hooks/exhaustive-deps

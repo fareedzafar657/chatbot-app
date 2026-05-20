@@ -117,7 +117,7 @@ export default function LoginPage() {
           <KaiLogo size={32} />
           <div>
             <div className="text-white text-[15px] font-semibold">K-AI</div>
-            <div className="text-white/60 text-[10px] leading-tight">by Wondering Kaslana</div>
+            <div className="text-white/60 text-[10px] leading-tight">by Fareed Z.</div>
           </div>
         </div>
 
@@ -148,7 +148,7 @@ export default function LoginPage() {
             <KaiLogo size={28} />
             <div>
               <div className="text-gray-900 text-[15px] font-semibold">K-AI</div>
-              <div className="text-gray-400 text-[10px] leading-tight">by Wondering Kaslana</div>
+              <div className="text-gray-400 text-[10px] leading-tight">by Fareed Z.</div>
             </div>
           </div>
 

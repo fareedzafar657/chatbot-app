@@ -15,7 +15,7 @@ export function EmptyState({ onSelect }: { readonly onSelect: (prompt: string) =
       <h2 className="text-[22px] font-semibold text-gray-900 mb-1">
         Hello, I&apos;m K-AI
       </h2>
-      <p className="text-[11px] text-gray-400 mb-8">by Wondering Kaslana</p>
+      <p className="text-[11px] text-gray-400 mb-8">by Fareed Z.</p>
       <p className="text-[14px] text-gray-500 mb-10 max-w-sm leading-relaxed">
         Ask me anything — from code questions to concept explanations. I&apos;m here to help.
       </p>

@@ -14,7 +14,7 @@ export function SidebarShell({ children }: SidebarShellProps) {
         <KaiLogo size={28} />
         <div>
           <div className="text-[15px] font-semibold text-gray-900">K-AI</div>
-          <div className="text-[10px] text-gray-400">by Wondering Kaslana</div>
+          <div className="text-[10px] text-gray-400">by Fareed Z.</div>
         </div>
       </div>
 

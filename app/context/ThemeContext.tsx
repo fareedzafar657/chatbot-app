@@ -151,12 +151,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const activePreset = THEME_PRESETS.find(p => p.id === activePresetId) ?? THEME_PRESETS[0];
   const accentColor  = customColor ?? activePreset.base;
 
-  // Apply theme to DOM whenever it changes
   useEffect(() => {
     applyTheme(accentColor, activePreset.sidebar, isDark);
   }, [accentColor, activePreset.sidebar, isDark]);
 
-  // Persist to localStorage whenever it changes
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ presetId: activePresetId, customColor, isDark }));
   }, [activePresetId, customColor, isDark]);

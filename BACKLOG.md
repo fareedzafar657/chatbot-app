@@ -18,16 +18,6 @@ Update this file whenever a feature is implemented or a backend contract changes
 
 ---
 
-### Cherry Pick
-**Status:** Disabled (button visible but non-functional)
-**Location:** `app/components/BranchModal/types.ts`, `lib/store.ts:cherryPickBranch`
-**Idea:** Open a sub-view inside the branch modal showing all branches and their messages. The user selects individual messages from any branch (not just the active one) to append to their current active branch — analogous to `git cherry-pick`.
-**Needs:**
-- New backend API to append messages from one branch to another
-- Branch + message browser UI inside the modal (new panel or page within modal)
-
----
-
 ### Session Title Generation
 **Status:** Hardcoded fallback — title defaults to the first 45 characters of the user's first message (set client-side in `lib/store.ts:onMetadata`)
 **Location:** `lib/store.ts` (~line 303), `app/components/Sidebar.tsx` (`session.title ?? 'New Conversation'`)
@@ -86,25 +76,10 @@ Update this file whenever a feature is implemented or a backend contract changes
 
 ---
 
-### Chat Background Patterns
-**Status:** Not implemented — chat area has a plain white background
-**Location:** `app/components/` (chat view)
-**Idea:** Allow users to select a background pattern for the chat area (similar to WhatsApp/Facebook Messenger) — subtle geometric or texture patterns that complement the accent color. Store the selected pattern ID alongside theme data in the database.
-**Needs:** Pattern assets or CSS pattern definitions; pattern picker UI in AppearanceTab; pattern ID field on user profile API
-
----
-
 ### User Bio (General Settings)
 **Status:** Hardcoded — `bio` state initialises as `''` and is never loaded from or saved to the API
 **Location:** `app/components/settings/GeneralTab.tsx` (`bio` state, textarea)
 **Needs:** `bio` field on the user profile API response; load on mount, save via the profile update endpoint above
-
----
-
-### Timezone (General Settings)
-**Status:** Hardcoded — timezone select is non-functional (`onChange={() => {}}`, value fixed to `'UTC-8 (Pacific)'`)
-**Location:** `app/components/settings/GeneralTab.tsx` (Timezone `Select`)
-**Needs:** Timezone field on the user profile API; persist selection on save
 
 ---
 

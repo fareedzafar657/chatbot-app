@@ -226,7 +226,6 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       const result = await api.listMessages(branchId, cursor);
       if (get().activeBranchId !== branchId) return;
       set((state) => ({
-        // Cursor-based pagination: prepend older messages at the top
         messages: cursor ? [...result.items, ...state.messages] : result.items,
         hasMoreMessages: result.hasMore,
         messagesCursor: result.nextCursor ?? null,
@@ -357,7 +356,6 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
     const apiKey = resolveApiKey(userProvider, userAnthropicKey, userGeminiKey);
 
-    // Resolve null/empty model to the provider's default
     // (empty string in GEMINI_MODELS/ANTHROPIC_MODELS means "use the first/default model")
     const resolvedModel = userModel
       ?? (userProvider === 'gemini'    ? 'gemini-2.5-flash'
@@ -379,7 +377,6 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         const idSet = new Set(msgIds);
         const compactedBy = { summaryMsgId: result.summaryMessage.msgId, name };
 
-        // Mark originals as compacted in place, then insert summary after the last one
         const marked = state.messages.map((m) =>
           idSet.has(m.msgId) ? { ...m, state: 'compacted' as const, compactedBy } : m
         );
@@ -389,7 +386,6 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         const idx = lastIdx === -1 ? marked.length : lastIdx + 1;
         marked.splice(idx, 0, result.summaryMessage);
 
-        // Update active branch's selectedMsgIds: replace compacted IDs with summary ID
         // Without this, the branch modal sort (which relies on selectedMsgIds positions) would
         // have no entry for the new summary → originals would sort before it instead of after.
         const branches = state.branches.map((b) => {
@@ -542,7 +538,6 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       abortController: controller,
     }));
 
-    // Track real IDs as they arrive from the stream
     let realSessionId = activeSessionId;
     let realBranchId = activeBranchId ?? '';
 
@@ -623,7 +618,6 @@ export const useChatStore = create<ChatStore>((set, get) => ({
               abortController: null,
             }));
 
-            // Refresh sessions list (updates title, adds new session to sidebar)
             api
               .listSessions()
               .then((result) => {
@@ -639,7 +633,6 @@ export const useChatStore = create<ChatStore>((set, get) => ({
               })
               .catch(() => useChatStore.setState({ errorMessage: GENERIC_ERROR }));
 
-            // Refresh branches for updated count
             if (realSessionId) {
               api
                 .listBranches(realSessionId)

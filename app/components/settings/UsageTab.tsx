@@ -31,8 +31,6 @@ function formatTokens(n: number): string {
 
 function formatModelId(modelId: string): string {
   const map: Record<string, string> = {
-    'amazon.nova-micro-v1:0': 'Amazon Nova Micro',
-    'amazon.nova-lite-v1:0': 'Amazon Nova Lite',
     'amazon.nova-pro-v1:0': 'Amazon Nova Pro',
     'anthropic.claude-3-sonnet-20240229-v1:0': 'Claude 3 Sonnet',
     'anthropic.claude-3-haiku-20240307-v1:0': 'Claude 3 Haiku',

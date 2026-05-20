@@ -3,7 +3,6 @@ import { useChatStore } from "@/lib/store";
 import { useShallow } from "zustand/react/shallow";
 import { type ModelAvailability, type Provider, providerAdaptors } from "@/shared/ai-config";
 
-// Manages local (unsaved) edits to AI config and model availability probing.
 // Syncs from the store only on popover open — never tracks live store changes.
 export function useAiConfigDraft(open: boolean) {
   const {

@@ -1,7 +1,6 @@
 import { KaiLogo } from '@/app/components/common/KaiLogo';
 
 interface PageLoaderProps {
-  /** Shown below the spinner. Defaults to nothing. */
   label?: string;
 }
 

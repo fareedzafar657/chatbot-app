@@ -10,8 +10,40 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: 'Kai',
-  description: 'AI chat with branching conversations',
+  title: {
+    default: 'K-AI',
+    template: '%s | K-AI',
+  },
+  description:
+    'Open-source AI chat with branching conversations. Explore, compare, and build on parallel conversation threads powered by your preferred LLM.',
+  keywords: [
+    'AI chat',
+    'branching conversations',
+    'open source AI',
+    'LLM',
+    'ChatGPT alternative',
+    'conversation branching',
+    'AI assistant',
+  ],
+  authors: [{ name: 'Fareed Z.' }],
+  creator: 'Fareed Z.',
+  openGraph: {
+    type: 'website',
+    locale: 'en_US',
+    title: 'K-AI — Branching AI Chat',
+    description:
+      'Open-source AI chat with branching conversations. Explore, compare, and build on parallel conversation threads.',
+    siteName: 'K-AI',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'K-AI — Branching AI Chat',
+    description: 'Open-source AI chat with branching conversations.',
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
