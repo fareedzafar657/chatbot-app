@@ -31,8 +31,8 @@ export default function LoginPage() {
   const router = useRouter();
   const user      = useAuthStore((state) => state.user);
   const isLoading = useAuthStore((state) => state.isLoading);
-  const login       = useAuthStore((state) => state.login);
-  const signup      = useAuthStore((state) => state.signup);
+  const login         = useAuthStore((state) => state.login);
+  const signup        = useAuthStore((state) => state.signup);
   const confirmSignUp = useAuthStore((state) => state.confirmSignUp);
 
   const [email, setEmail]             = useState('');
@@ -124,16 +124,17 @@ export default function LoginPage() {
         {/* Quote */}
         <div className="relative">
           <blockquote className="text-white/80 text-[15px] mb-4 leading-relaxed">
-            &ldquo;K-AI has fundamentally changed how our team approaches research and
-            code reviews. It&apos;s like having a senior engineer available 24/7.&rdquo;
+            &ldquo;Most AI chat apps lock you into their flow. K-AI gives you full control —
+            branch any conversation, edit any message, and manage exactly how your agent thinks.
+            Your context, your rules.&rdquo;
           </blockquote>
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-400 to-indigo-500 flex items-center justify-center">
-              <span className="text-white text-[11px] font-semibold">SK</span>
+              <span className="text-white text-[11px] font-semibold">FZ</span>
             </div>
             <div>
-              <div className="text-white text-[13px] font-medium">Sarah Kim</div>
-              <div className="text-white/50 text-[12px]">CTO at Axiom Labs</div>
+              <div className="text-white text-[13px] font-medium">Fareed Z.</div>
+              <div className="text-white/50 text-[12px]">Creator of K-AI</div>
             </div>
           </div>
         </div>
@@ -306,7 +307,7 @@ export default function LoginPage() {
                     Don&apos;t have an account?{' '}
                     <button
                       type="button"
-                      onClick={() => setError('This app is private — registration is not open to the public.')}
+                      onClick={() => { setMode('signup'); setError(''); }}
                       className="text-violet-600 hover:text-violet-700 font-medium"
                     >
                       Sign up
@@ -326,13 +327,6 @@ export default function LoginPage() {
                 )}
               </p>
 
-              {/* Terms */}
-              <p className="text-center text-[11px] text-gray-400 mt-4">
-                By continuing, you agree to our{' '}
-                <a href="/terms" className="underline hover:text-gray-600">Terms of Service</a>{' '}
-                and{' '}
-                <a href="/privacy" className="underline hover:text-gray-600">Privacy Policy</a>.
-              </p>
             </>
           )}
         </div>

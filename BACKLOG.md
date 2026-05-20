@@ -126,11 +126,11 @@ Update this file whenever a feature is implemented or a backend contract changes
 
 ### Google OAuth
 **Status:** Not implemented
-**Location:** `app/login/page.tsx` (button present, no handler)
+**Location:** `app/login/page.tsx` (button not present, no handler)
 
 ### GitHub OAuth
 **Status:** Not implemented
-**Location:** `app/login/page.tsx` (button present, no handler)
+**Location:** `app/login/page.tsx` — add a button calling `signInWithRedirect({ provider: 'Github' })` following the same pattern as Google
 
 ### Forgot Password
 **Status:** Not implemented
