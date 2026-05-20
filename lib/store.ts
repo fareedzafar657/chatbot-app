@@ -65,6 +65,16 @@ function persistAiConfig(state: AiConfigSlice) {
   }
 }
 
+function resolveApiKey(
+  provider: 'anthropic' | 'gemini' | null,
+  anthropicKey: string | null,
+  geminiKey: string | null,
+): string | null {
+  return provider === 'anthropic' ? anthropicKey
+       : provider === 'gemini'    ? geminiKey
+       : null;
+}
+
 function genTempId(): string {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
     return crypto.randomUUID();
@@ -83,6 +93,8 @@ interface ChatState {
   isLoadingSessions: boolean;
   isLoadingMessages: boolean;
   showBranchModal: boolean;
+  isCompacting: boolean;
+  isForkingBranch: boolean;
   hasMoreMessages: boolean;
   messagesCursor: string | null;
   abortController: AbortController | null;
@@ -102,6 +114,7 @@ interface ChatActions {
   setActiveSession(sessionId: string): void;
   loadMessages(branchId: string, cursor?: string): Promise<void>;
   loadMoreMessages(): Promise<void>;
+  loadAllMessages(): Promise<void>;
   loadBranches(sessionId: string): Promise<void>;
   newSession(): void;
   deleteSession(sessionId: string): void;
@@ -113,6 +126,8 @@ interface ChatActions {
   setActiveBranch(branchId: string): void;
   autoSelectMessages(): string[];
   cherryPickMessages(sourceMsgIds: string[]): Promise<void>;
+  compactMessages(msgIds: string[], name: string): Promise<void>;
+  deleteCompaction(summaryMsgId: string): Promise<void>;
   dismissError(): void;
   setAiConfig(cfg: {
     anthropicKey?: string | null;
@@ -137,6 +152,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   isLoadingSessions: true,
   isLoadingMessages: false,
   showBranchModal: false,
+  isCompacting: false,
+  isForkingBranch: false,
   hasMoreMessages: false,
   messagesCursor: null,
   abortController: null,
@@ -222,9 +239,18 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   },
 
   loadMoreMessages: async () => {
-    const { messagesCursor, activeBranchId } = get();
-    if (!messagesCursor || !activeBranchId) return;
+    const { messagesCursor, activeBranchId, isLoadingMessages } = get();
+    if (!messagesCursor || !activeBranchId || isLoadingMessages) return;
     await get().loadMessages(activeBranchId, messagesCursor);
+  },
+
+  loadAllMessages: async () => {
+    // isLoadingMessages is set synchronously inside loadMessages before the first await,
+    // so a concurrent caller sees it immediately and bails — no duplicate fetches.
+    if (get().isLoadingMessages || !get().hasMoreMessages) return;
+    while (get().hasMoreMessages) {
+      await get().loadMessages(get().activeBranchId!, get().messagesCursor!);
+    }
   },
 
   // ── Branch operations ─────────────────────────────────────────────────────
@@ -247,6 +273,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     const { activeSessionId, activeBranchId } = get();
     if (!activeSessionId || !activeBranchId) return;
 
+    set({ isForkingBranch: true });
+
     try {
       const newBranch = await api.forkBranch({
         session_id: activeSessionId,
@@ -261,6 +289,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         branches: [...state.branches, newBranch],
         activeBranchId: newBranch.branchId,
         messages: state.messages.filter(m => selectedMsgIds.includes(m.msgId)),
+        isForkingBranch: false,
         showBranchModal: false,
         sessions: state.sessions.map((s) =>
           s.sessionId === activeSessionId
@@ -269,7 +298,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         ),
       }));
     } catch {
-      set({ errorMessage: GENERIC_ERROR });
+      set({ errorMessage: GENERIC_ERROR, isForkingBranch: false });
     }
   },
 
@@ -314,6 +343,100 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           b.branchId === activeBranchId ? result.branch : b
         ),
         showBranchModal: false,
+      }));
+    } catch {
+      set({ errorMessage: GENERIC_ERROR });
+    }
+  },
+
+  compactMessages: async (msgIds, name) => {
+    const { activeBranchId, userProvider, userModel, userAnthropicKey, userGeminiKey } = get();
+    if (!activeBranchId) return;
+
+    set({ isCompacting: true });
+
+    const apiKey = resolveApiKey(userProvider, userAnthropicKey, userGeminiKey);
+
+    // Resolve null/empty model to the provider's default
+    // (empty string in GEMINI_MODELS/ANTHROPIC_MODELS means "use the first/default model")
+    const resolvedModel = userModel
+      ?? (userProvider === 'gemini'    ? 'gemini-2.5-flash'
+        : userProvider === 'anthropic' ? 'claude-haiku-4-5-20251001'
+        : null);
+
+    try {
+      const result = await api.compact(activeBranchId, {
+        msg_ids: msgIds,
+        name,
+        ...(userProvider && resolvedModel && apiKey && {
+          provider: userProvider,
+          model: resolvedModel,
+          api_key: apiKey,
+        }),
+      });
+
+      set((state) => {
+        const idSet = new Set(msgIds);
+        const compactedBy = { summaryMsgId: result.summaryMessage.msgId, name };
+
+        // Mark originals as compacted in place, then insert summary after the last one
+        const marked = state.messages.map((m) =>
+          idSet.has(m.msgId) ? { ...m, state: 'compacted' as const, compactedBy } : m
+        );
+
+        // Insert summary message immediately after the last compacted message
+        const lastIdx = marked.reduce((acc, m, i) => (idSet.has(m.msgId) ? i : acc), -1);
+        const idx = lastIdx === -1 ? marked.length : lastIdx + 1;
+        marked.splice(idx, 0, result.summaryMessage);
+
+        // Update active branch's selectedMsgIds: replace compacted IDs with summary ID
+        // Without this, the branch modal sort (which relies on selectedMsgIds positions) would
+        // have no entry for the new summary → originals would sort before it instead of after.
+        const branches = state.branches.map((b) => {
+          if (b.branchId !== activeBranchId) return b;
+          const current = b.selectedMsgIds;
+          const firstIdx = current.findIndex((id) => idSet.has(id));
+          if (firstIdx === -1) return { ...b, selectedMsgIds: [...current, result.summaryMessage.msgId] };
+          const newSelected = [
+            ...current.slice(0, firstIdx),
+            result.summaryMessage.msgId,
+            ...current.slice(firstIdx).filter((id) => !idSet.has(id)),
+          ];
+          return { ...b, selectedMsgIds: newSelected };
+        });
+
+        return { messages: marked, branches, isCompacting: false, showBranchModal: false };
+      });
+    } catch {
+      set({ errorMessage: GENERIC_ERROR, isCompacting: false });
+    }
+  },
+
+  deleteCompaction: async (summaryMsgId) => {
+    const { activeBranchId, messages } = get();
+    if (!activeBranchId) return;
+
+    const summary = messages.find((m) => m.msgId === summaryMsgId);
+    const originalIdList = summary?.originalMsgIds ?? [];
+    const originalIds = new Set(originalIdList);
+
+    try {
+      await api.deleteCompaction(activeBranchId, summaryMsgId);
+      set((state) => ({
+        messages: state.messages
+          .filter((m) => m.msgId !== summaryMsgId)
+          .map((m) => originalIds.has(m.msgId) ? { ...m, state: 'active' as const, compactedBy: undefined } : m),
+        branches: state.branches.map((b) => {
+          if (b.branchId !== activeBranchId) return b;
+          const idx = b.selectedMsgIds.indexOf(summaryMsgId);
+          if (idx === -1) return b;
+          const newSelected = [
+            ...b.selectedMsgIds.slice(0, idx),
+            ...originalIdList,
+            ...b.selectedMsgIds.slice(idx + 1),
+          ];
+          return { ...b, selectedMsgIds: newSelected };
+        }),
       }));
     } catch {
       set({ errorMessage: GENERIC_ERROR });
@@ -429,7 +552,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           prompt,
           sessionId:    activeSessionId,
           branchId:     activeBranchId,
-          apiKey:       get().userProvider === 'anthropic' ? get().userAnthropicKey : get().userProvider === 'gemini' ? get().userGeminiKey : null,
+          apiKey:       resolveApiKey(get().userProvider, get().userAnthropicKey, get().userGeminiKey),
           provider:     get().userProvider,
           model:        get().userModel,
           systemPrompt: get().userSystemPrompt,

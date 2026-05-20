@@ -1,35 +1,98 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { ConfirmDialog } from '../../common/ConfirmDialog';
 import { useChatStore, useActiveSession, useActiveBranch, useActiveMessages } from '@/lib/store';
 import { KaiLogo } from '../../common/KaiLogo';
+import { Spinner } from '../../common/Spinner';
 import { MessageSelector } from './MessageSelector';
 import { OperationsPanel } from './OperationsPanel';
 import { RightPanel } from './RightPanel';
 import { CherryPickPage } from './CherryPickPage';
+import { CompactPage, selectableIds } from './CompactPage';
 import { Operation, RightTab } from '@/shared/branch-modal';
+import { type Message } from '@/shared/types';
+
+// Compacted originals are not in selectedMsgIds — place them right after their summary
+function sortByBranchOrder(messages: Message[], selectedMsgIds: string[]): Message[] {
+  const posMap = new Map(selectedMsgIds.map((id, i) => [id, i]));
+  return [...messages].sort((a, b) => {
+    const posA = posMap.has(a.msgId)
+      ? posMap.get(a.msgId)!
+      : (posMap.get(a.compactedBy?.summaryMsgId ?? '') ?? 0) + 0.5;
+    const posB = posMap.has(b.msgId)
+      ? posMap.get(b.msgId)!
+      : (posMap.get(b.compactedBy?.summaryMsgId ?? '') ?? 0) + 0.5;
+    return posA - posB;
+  });
+}
 
 export function BranchModal() {
   const toggleBranchModal  = useChatStore((s) => s.toggleBranchModal);
   const forkBranch         = useChatStore((s) => s.forkBranch);
   const cherryPickMessages = useChatStore((s) => s.cherryPickMessages);
+  const compactMessages    = useChatStore((s) => s.compactMessages);
+  const isCompacting       = useChatStore((s) => s.isCompacting);
+  const isForkingBranch    = useChatStore((s) => s.isForkingBranch);
   const setActiveBranch    = useChatStore((s) => s.setActiveBranch);
-  const loadMoreMessages   = useChatStore((s) => s.loadMoreMessages);
-  const hasMoreMessages    = useChatStore((s) => s.hasMoreMessages);
   const branches = useChatStore((s) => s.branches);
 
   const activeSession  = useActiveSession();
   const activeBranch   = useActiveBranch();
   const activeMessages = useActiveMessages();
 
-  const [isLoadingMoreMessages, setIsLoadingMoreMessages] = useState(false);
+  const selectorMessages = useMemo(
+    () => sortByBranchOrder(activeMessages, activeBranch?.selectedMsgIds ?? []),
+    [activeMessages, activeBranch?.selectedMsgIds],
+  );
+
+  // True while messages are still loading — hide selector until all pages are present.
+  // Initialise from both flags: hasMoreMessages covers the common case; isLoadingMessages
+  // covers the race where the modal opens before the first page has even finished loading
+  // (at which point hasMoreMessages is still false even though more pages will exist).
+  const [isLoadingAll, setIsLoadingAll] = useState(
+    () => useChatStore.getState().isLoadingMessages || useChatStore.getState().hasMoreMessages,
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const finish = () => {
+      if (cancelled) return;
+      const { messages, activeBranchId } = useChatStore.getState();
+      const all = activeBranchId ? messages.filter((m) => m.branchId === activeBranchId) : messages;
+      setSelectedIds(new Set(all.filter((m) => m.state !== 'compacted').map((m) => m.msgId)));
+      setIsLoadingAll(false);
+    };
+
+    const loadRemainingThenFinish = () => {
+      useChatStore.getState().loadAllMessages().then(finish);
+    };
+
+    // If the initial page is still in flight, wait for it to settle before loading remaining pages.
+    // This handles the race where hasMoreMessages is false only because the first fetch hasn't
+    // resolved yet — subscribing ensures we pick up the real hasMoreMessages value.
+    if (useChatStore.getState().isLoadingMessages) {
+      const unsub = useChatStore.subscribe((state) => {
+        if (!state.isLoadingMessages && !cancelled) {
+          unsub();
+          loadRemainingThenFinish();
+        }
+      });
+      return () => { cancelled = true; unsub(); };
+    }
+
+    loadRemainingThenFinish();
+    return () => { cancelled = true; };
+  }, []);
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(
-    new Set(activeMessages.map((m) => m.msgId))
+    new Set(activeMessages.filter((m) => m.state !== 'compacted').map((m) => m.msgId))
   );
   const [cherrySelectedIds, setCherrySelectedIds] = useState<string[]>([]);
+  const [compactSelectedIds, setCompactSelectedIds] = useState<string[]>([]);
+  const [compactName, setCompactName] = useState('');
   const [opName, setOpName]         = useState('');
   const [operation, setOperation] = useState<Operation>(null);
   const [rightTab, setRightTab]     = useState<RightTab>('tree');
@@ -47,12 +110,24 @@ export function BranchModal() {
     });
   };
 
-  const startOp = (op: 'fork' | 'cherry-pick') => {
+  const bulkSetMessages = (toAdd: string[], toRemove: string[]) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      toRemove.forEach((id) => next.delete(id));
+      toAdd.forEach((id) => next.add(id));
+      return next;
+    });
+  };
+
+  const startOp = (op: 'fork' | 'cherry-pick' | 'compact') => {
     setOperation(op);
     if (op === 'fork') {
       setOpName(`branch-${branches.length + 1}`);
     } else if (op === 'cherry-pick') {
       setCherrySelectedIds([]);
+    } else if (op === 'compact') {
+      setCompactSelectedIds([]);
+      setCompactName('');
     }
   };
 
@@ -60,6 +135,8 @@ export function BranchModal() {
     setOperation(null);
     setOpName('');
     setCherrySelectedIds([]);
+    setCompactSelectedIds([]);
+    setCompactName('');
   };
 
   const toggleCherryMsg = (msgId: string) => {
@@ -69,10 +146,25 @@ export function BranchModal() {
     });
   };
 
+  const toggleCompactMsg = (msgId: string) => {
+    setCompactSelectedIds((prev) => {
+      if (prev.includes(msgId)) return prev.filter((id) => id !== msgId);
+      return [...prev, msgId];
+    });
+  };
+
   const executeCherryPick = async () => {
     setIsCherryPicking(true);
     await cherryPickMessages(cherrySelectedIds);
     setIsCherryPicking(false);
+  };
+
+  const executeCompact = () => {
+    // Sort selected IDs by chronological order (activeMessages is already ordered by createdAt)
+    const orderedIds = activeMessages
+      .filter((m) => compactSelectedIds.includes(m.msgId))
+      .map((m) => m.msgId);
+    compactMessages(orderedIds, compactName);
   };
 
   const executeOp = () => {
@@ -92,8 +184,9 @@ export function BranchModal() {
   };
 
   const selectedCount = selectedIds.size;
-  const firstSelected = activeMessages.find((m) => selectedIds.has(m.msgId)) ?? null;
-  const hasValidFirst = selectedCount === 0 || firstSelected?.role === 'user';
+  const firstSelected = selectorMessages.find((m) => selectedIds.has(m.msgId)) ?? null;
+  // Compaction summaries are valid as first context — only reject plain assistant messages
+  const hasValidFirst = selectedCount === 0 || firstSelected?.role === 'user' || firstSelected?.type === 'compaction-summary';
   const canExecute = operation === 'fork' && selectedCount > 0 && hasValidFirst;
 
   const currentBranchName = activeBranch?.label ?? 'main';
@@ -120,7 +213,7 @@ export function BranchModal() {
       {/* Main modal */}
       <div className="relative z-10 w-[1060px] max-w-[96vw] h-[680px] max-h-[92vh] bg-white rounded-2xl shadow-2xl border border-gray-200 flex flex-col overflow-hidden">
 
-        {/* Cherry pick page (full height) */}
+        {/* Full-page overlays */}
         {operation === 'cherry-pick' ? (
           <CherryPickPage
             branches={branches}
@@ -133,6 +226,19 @@ export function BranchModal() {
               setOperation(null);
               setCherrySelectedIds([]);
             }}
+          />
+        ) : operation === 'compact' ? (
+          <CompactPage
+            messages={selectorMessages}
+            selectedIds={compactSelectedIds}
+            compactName={compactName}
+            isCompacting={isCompacting}
+            onToggle={toggleCompactMsg}
+            onChangeName={setCompactName}
+            onConfirm={executeCompact}
+            onBack={cancelOp}
+            onSelectAll={() => setCompactSelectedIds(selectableIds(selectorMessages))}
+            onSelectNone={() => setCompactSelectedIds([])}
           />
         ) : (
           <>
@@ -169,31 +275,35 @@ export function BranchModal() {
 
           {/* Left panel */}
           <div className="w-[340px] flex-shrink-0 flex flex-col">
-            <MessageSelector
-              messages={activeMessages}
-              selectedIds={selectedIds}
-              firstSelectedRole={firstSelected?.role ?? null}
-              onToggle={toggleMessage}
-              onSelectAll={() => setSelectedIds(new Set(activeMessages.map((m) => m.msgId)))}
-              onSelectNone={() => setSelectedIds(new Set())}
-              hasMore={hasMoreMessages}
-              isLoadingMore={isLoadingMoreMessages}
-              onLoadMore={async () => {
-                setIsLoadingMoreMessages(true);
-                await loadMoreMessages();
-                setIsLoadingMoreMessages(false);
-              }}
-            />
-            <OperationsPanel
-              operation={operation}
-              opName={opName}
-              selectedCount={selectedCount}
-              canExecute={canExecute}
-              onStart={startOp}
-              onCancel={cancelOp}
-              onChangeName={setOpName}
-              onExecute={executeOp}
-            />
+            {isLoadingAll ? (
+              <div className="flex-1 flex items-center justify-center text-gray-400">
+                <Spinner className="w-5 h-5" />
+              </div>
+            ) : (
+              <>
+                <MessageSelector
+                  messages={selectorMessages}
+                  selectedIds={selectedIds}
+                  firstSelectedRole={firstSelected?.role ?? null}
+                  firstSelectedType={firstSelected?.type ?? null}
+                  onToggle={toggleMessage}
+                  onBulkSet={bulkSetMessages}
+                  onSelectAll={() => setSelectedIds(new Set(selectorMessages.filter((m) => m.state !== 'compacted').map((m) => m.msgId)))}
+                  onSelectNone={() => setSelectedIds(new Set())}
+                />
+                <OperationsPanel
+                  operation={operation}
+                  opName={opName}
+                  selectedCount={selectedCount}
+                  canExecute={canExecute}
+                  isForkingBranch={isForkingBranch}
+                  onStart={startOp}
+                  onCancel={cancelOp}
+                  onChangeName={setOpName}
+                  onExecute={executeOp}
+                />
+              </>
+            )}
           </div>
 
             {/* Right panel */}

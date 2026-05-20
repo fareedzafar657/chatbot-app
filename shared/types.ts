@@ -10,7 +10,7 @@ export interface Message {
   role: 'user' | 'assistant';
   /** null when the message is deleted or not yet streamed */
   content: string | null;
-  state: 'active' | 'stopped' | 'edited' | 'deleted';
+  state: 'active' | 'stopped' | 'edited' | 'deleted' | 'compacted';
   /** absent on optimistic local messages created before the server responds */
   userId?: string;
   parentMsgId?: string;
@@ -20,6 +20,13 @@ export interface Message {
   updatedAt: string;
   // Local-only — not from API
   isStreaming?: boolean;
+  // Compaction fields — present only on compaction-summary messages and their originals
+  type?: 'compaction-summary';
+  compactionName?: string;
+  originalMsgIds?: string[];
+  tokensBefore?: number;
+  tokensAfter?: number;
+  compactedBy?: { summaryMsgId: string; name: string };
 }
 
 export interface Branch {
@@ -94,6 +101,24 @@ export interface CherryPickRequest {
 export interface CherryPickResponse {
   branch: Branch;
   newMessages: Message[];
+}
+
+export interface CompactRequest {
+  msg_ids: string[];
+  name: string;
+  provider?: 'anthropic' | 'gemini';
+  model?: string;
+  api_key?: string;
+}
+
+export interface CompactResponse {
+  summaryMessage: Message;
+  tokensBefore: number;
+  tokensAfter: number;
+}
+
+export interface DeleteCompactionResponse {
+  restoredMessages: Message[];
 }
 
 // ─── Usage stats ──────────────────────────────────────────────────────────────

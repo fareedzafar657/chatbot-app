@@ -1,15 +1,17 @@
 'use client';
 
-import { GitBranch, List } from 'lucide-react';
+import { GitBranch, List, Archive } from 'lucide-react';
 import { Branch } from '@/shared/types';
 import { BranchTree } from '../BranchTree';
 import { BranchVersionsView } from '../BranchVersionsView';
+import { CompactsView } from '../CompactsView';
 import { RightTab, RIGHT_TABS } from '@/shared/branch-modal';
 import { cn } from '@/lib/cn';
 
 const TAB_ICONS: Record<RightTab, React.ElementType> = {
   tree:     GitBranch,
   versions: List,
+  compacts: Archive,
 };
 
 interface RightPanelProps {
@@ -52,6 +54,7 @@ export function RightPanel({
         {({
           tree:     <BranchTree branches={branches} activeBranchId={activeBranchId} onSwitchBranch={onSwitchBranch} />,
           versions: <BranchVersionsView branches={branches} activeBranchId={activeBranchId} onSwitchBranch={onSwitchBranch} />,
+          compacts: <CompactsView />,
         } satisfies Record<RightTab, React.ReactNode>)[activeTab]}
       </div>
     </div>

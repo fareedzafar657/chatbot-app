@@ -1,6 +1,7 @@
 'use client';
 
 import { Operation, OP_BUTTONS } from '@/shared/branch-modal';
+import { Spinner } from '../../common/Spinner';
 import { cn } from '@/lib/cn';
 
 interface OperationsPanelProps {
@@ -8,7 +9,8 @@ interface OperationsPanelProps {
   opName: string;
   selectedCount: number;
   canExecute: boolean;
-  onStart: (op: 'fork' | 'cherry-pick') => void;
+  isForkingBranch: boolean;
+  onStart: (op: 'fork' | 'cherry-pick' | 'compact') => void;
   onCancel: () => void;
   onChangeName: (name: string) => void;
   onExecute: () => void;
@@ -19,6 +21,7 @@ export function OperationsPanel({
   opName,
   selectedCount,
   canExecute,
+  isForkingBranch,
   onStart,
   onCancel,
   onChangeName,
@@ -66,13 +69,14 @@ export function OperationsPanel({
 
           <button
             onClick={onExecute}
-            disabled={!canExecute}
+            disabled={!canExecute || isForkingBranch}
             className={cn(
-              'w-full py-2 rounded-xl text-[13px] font-medium transition-all',
-              canExecute ? 'bg-[#18181B] hover:bg-black text-white shadow-sm' : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+              'w-full py-2 rounded-xl text-[13px] font-medium transition-all flex items-center justify-center gap-2',
+              canExecute && !isForkingBranch ? 'bg-[#18181B] hover:bg-black text-white shadow-sm' : 'bg-gray-100 text-gray-400 cursor-not-allowed'
             )}
           >
-            Confirm Fork
+            {isForkingBranch && <Spinner className="w-3.5 h-3.5" />}
+            {isForkingBranch ? 'Forking…' : 'Confirm Fork'}
           </button>
         </div>
       )}

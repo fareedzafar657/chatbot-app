@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { Sparkles, User, Check, Search } from 'lucide-react';
 import { Message } from '@/shared/types';
 import { KaiLogo } from '../../common/KaiLogo';
-import { Spinner } from '../../common/Spinner';
 import { cn } from '@/lib/cn';
 
 function truncate(str: string | null, max: number): string {
@@ -16,29 +15,40 @@ interface MessageSelectorProps {
   messages: Message[];
   selectedIds: Set<string>;
   firstSelectedRole: 'user' | 'assistant' | null;
+  firstSelectedType?: string | null;
   onToggle: (id: string) => void;
   onSelectAll: () => void;
   onSelectNone: () => void;
-  hasMore?: boolean;
-  isLoadingMore?: boolean;
-  onLoadMore?: () => void;
+  onBulkSet?: (toAdd: string[], toRemove: string[]) => void;
 }
 
 export function MessageSelector({
   messages,
   selectedIds,
   firstSelectedRole,
+  firstSelectedType,
   onToggle,
   onSelectAll,
   onSelectNone,
-  hasMore = false,
-  isLoadingMore = false,
-  onLoadMore,
+  onBulkSet,
 }: MessageSelectorProps) {
   const selectedCount = selectedIds.size;
-  const hasInvalidFirst = selectedCount > 0 && firstSelectedRole === 'assistant';
+  // Compaction summaries are valid as the first context message — only warn for plain assistant messages
+  const hasInvalidFirst = selectedCount > 0 && firstSelectedRole === 'assistant' && firstSelectedType !== 'compaction-summary';
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
+
+  // Clicking either side of a compaction group (summary ↔ originals) swaps the selection:
+  // if the "other side" is already selected, replace it with the clicked item.
+  const handleCompactionGroupToggle = (thisId: string, counterpartIds: string[]) => {
+    if (selectedIds.has(thisId)) {
+      onToggle(thisId);
+    } else {
+      const selectedCounterparts = counterpartIds.filter((id) => selectedIds.has(id));
+      if (selectedCounterparts.length > 0) onBulkSet?.([thisId], selectedCounterparts);
+      else onToggle(thisId);
+    }
+  };
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedQuery(searchQuery), 300);
@@ -94,6 +104,56 @@ export function MessageSelector({
           <div className="text-center py-10 text-[13px] text-gray-400">No matches in messages</div>
         ) : (
           filtered.map((msg, i) => {
+            // Compaction summary row — full row is clickable to select/deselect
+            if (msg.type === 'compaction-summary') {
+              const isSelected = selectedIds.has(msg.msgId);
+              return (
+                <button
+                  key={msg.msgId}
+                  onClick={() => handleCompactionGroupToggle(msg.msgId, msg.originalMsgIds ?? [])}
+                  className={cn('w-full text-left flex items-start gap-2.5 px-2.5 py-2 rounded-lg border transition-all', isSelected ? 'bg-teal-50 border-teal-200' : 'bg-gray-50 border-transparent hover:border-gray-200 hover:bg-gray-100')}
+                >
+                  <div className={cn('flex-shrink-0 w-4 h-4 mt-0.5 rounded border flex items-center justify-center transition-all', isSelected ? 'bg-teal-600 border-teal-600' : 'bg-white border-gray-300')}>
+                    {isSelected && <Check className="w-2.5 h-2.5 text-white" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                      <span className="text-[11px] font-semibold text-teal-700">{msg.compactionName}</span>
+                      <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-teal-100 text-teal-600 font-medium">summary</span>
+                    </div>
+                    <div className="text-[11px] text-gray-500 line-clamp-1">{truncate(msg.content, 60)}</div>
+                  </div>
+                </button>
+              );
+            }
+
+            // Compacted original message row — always visible, indented to show grouping
+            if (msg.state === 'compacted') {
+              const isSelected = selectedIds.has(msg.msgId);
+              const isUser = msg.role === 'user';
+              return (
+                <button
+                  key={msg.msgId}
+                  onClick={() => handleCompactionGroupToggle(msg.msgId, msg.compactedBy?.summaryMsgId ? [msg.compactedBy.summaryMsgId] : [])}
+                  className={cn(
+                    'w-full text-left flex items-start gap-2.5 pl-5 pr-2.5 py-2 rounded-lg transition-all border ml-2',
+                    isSelected ? 'bg-violet-50 border-violet-200' : 'bg-gray-50 border-transparent hover:border-gray-200 hover:bg-gray-100'
+                  )}
+                >
+                  <div className={cn('flex-shrink-0 w-4 h-4 mt-0.5 rounded border flex items-center justify-center transition-all', isSelected ? 'bg-violet-600 border-violet-600' : 'bg-white border-gray-300')}>
+                    {isSelected && <Check className="w-2.5 h-2.5 text-white" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                      <span className="text-[11px] font-semibold text-gray-500">{isUser ? 'You' : 'K-AI'}</span>
+                      <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">compacted</span>
+                    </div>
+                    <div className="text-[11px] text-gray-400 line-clamp-1">{truncate(msg.content, 60)}</div>
+                  </div>
+                </button>
+              );
+            }
+
             const isSelected = selectedIds.has(msg.msgId);
             const isUser = msg.role === 'user';
             const isFirstSelected = isSelected && messages.find(m => selectedIds.has(m.msgId))?.msgId === msg.msgId;
@@ -142,20 +202,6 @@ export function MessageSelector({
           })
         )}
       </div>
-
-      {/* See More button */}
-      {hasMore && !debouncedQuery && (
-        <div className="px-4 py-2 border-t border-gray-50 flex-shrink-0">
-          <button
-            onClick={onLoadMore}
-            disabled={isLoadingMore}
-            className="w-full py-2 text-center text-[11px] text-gray-600 hover:bg-gray-100 rounded transition-colors disabled:opacity-50 flex items-center justify-center gap-1"
-          >
-            {isLoadingMore && <Spinner className="w-3 h-3" />}
-            {isLoadingMore ? 'Loading...' : 'See More'}
-          </button>
-        </div>
-      )}
 
       {/* Validation warning */}
       {hasInvalidFirst && (

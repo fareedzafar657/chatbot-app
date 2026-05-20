@@ -197,6 +197,22 @@ export function CherryPickPage({
                                 const selectionIndex = selectedIds.indexOf(msg.msgId) + 1;
                                 const isUser = msg.role === 'user';
 
+                                // Non-interactive rows for compacted/summary messages from other branches
+                                if (msg.state === 'compacted') {
+                                  return (
+                                    <div key={msg.msgId} className="flex items-start gap-2 p-2 rounded bg-gray-50 opacity-50">
+                                      <div className="flex-shrink-0 w-5 h-5 rounded border border-gray-200 bg-gray-100" />
+                                      <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-1.5 mb-0.5">
+                                          <span className="text-[10px] font-semibold text-gray-500">{msg.role === 'user' ? 'You' : 'K-AI'}</span>
+                                          <span className="text-[9px] px-1 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">compacted · {msg.compactedBy?.name}</span>
+                                        </div>
+                                        <div className="text-[10px] text-gray-400 line-clamp-1">{truncate(msg.content, 50)}</div>
+                                      </div>
+                                    </div>
+                                  );
+                                }
+
                                 return (
                                   <button
                                     key={msg.msgId}

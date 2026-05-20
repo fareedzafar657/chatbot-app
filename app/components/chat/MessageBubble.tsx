@@ -5,6 +5,7 @@ import { Message } from '@/shared/types';
 import { useCopyToClipboard } from '@/lib/hooks';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import { KaiLogo } from '../common/KaiLogo';
+import { CompactCard } from './CompactCard';
 
 function formatTime(dateStr: string): string {
   return new Date(dateStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -18,6 +19,8 @@ interface MessageBubbleProps {
 export function MessageBubble({ message, isStreaming }: MessageBubbleProps) {
   const isUser = message.role === 'user';
   const [copyState, copy] = useCopyToClipboard();
+
+  if (message.type === 'compaction-summary') return <CompactCard message={message} />;
 
   const handleCopy = () => copy(message.content!);
 
