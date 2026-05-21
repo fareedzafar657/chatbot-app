@@ -91,22 +91,3 @@ export function KaiLogo({ size = 32 }: KaiLogoProps) {
     </svg>
   );
 }
-
-/** Full wordmark: logo + K-AI text + company */
-export function KaiWordmark({ size = 32, showCompany = false }: { size?: number; showCompany?: boolean }) {
-  return (
-    <div className="flex items-center gap-2.5">
-      <KaiLogo size={size} />
-      <div>
-        <div className="text-gray-900" style={{ fontSize: size * 0.47, fontWeight: 700, lineHeight: 1.2, letterSpacing: '-0.01em' }}>
-          K-AI
-        </div>
-        {showCompany && (
-          <div className="text-gray-400" style={{ fontSize: size * 0.3, fontWeight: 400, lineHeight: 1.1 }}>
-            by Fareed Z.
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}

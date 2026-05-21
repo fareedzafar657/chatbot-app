@@ -13,14 +13,11 @@ export interface Message {
   state: 'active' | 'stopped' | 'edited' | 'deleted' | 'compacted';
   /** absent on optimistic local messages created before the server responds */
   userId?: string;
-  parentMsgId?: string;
   inputTokens?: number;
   outputTokens?: number;
   createdAt: string;
   updatedAt: string;
   modelId?: string;
-  // Local-only — not from API
-  isStreaming?: boolean;
   // Compaction fields — present only on compaction-summary messages and their originals
   type?: 'compaction-summary';
   compactionName?: string;
@@ -90,7 +87,6 @@ export interface PatchMessageRequest {
 export interface ForkBranchRequest {
   session_id: string;
   parent_branch_id: string;
-  parent_msg_id?: string;
   selected_msg_ids: string[];
   label?: string;
 }

@@ -6,6 +6,7 @@ import { type Message } from '@/shared/types';
 import { KaiLogo } from '../../common/KaiLogo';
 import { Spinner } from '../../common/Spinner';
 import { cn } from '@/lib/cn';
+import { truncate } from './modal.utils';
 
 const TRUNCATE_COMPACT_ROW  = 60;  // compact/summary rows in the message list
 const TRUNCATE_LIST_ITEM    = 80;  // selectable messages in the left panel
@@ -15,11 +16,6 @@ export function selectableIds(messages: Message[]): string[] {
   return messages
     .filter((m) => m.state !== 'compacted' && m.type !== 'compaction-summary')
     .map((m) => m.msgId);
-}
-
-function truncate(str: string | null, max: number): string {
-  if (!str) return '';
-  return str.length > max ? str.slice(0, max) + '…' : str;
 }
 
 function estimateTokens(messages: Message[]): number {

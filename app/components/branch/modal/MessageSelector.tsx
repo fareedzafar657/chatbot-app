@@ -5,11 +5,7 @@ import { Sparkles, User, Check, Search } from 'lucide-react';
 import { Message } from '@/shared/types';
 import { KaiLogo } from '../../common/KaiLogo';
 import { cn } from '@/lib/cn';
-
-function truncate(str: string | null, max: number): string {
-  if (!str) return '';
-  return str.length > max ? str.slice(0, max) + '…' : str;
-}
+import { truncate } from './modal.utils';
 
 interface MessageSelectorProps {
   messages: Message[];

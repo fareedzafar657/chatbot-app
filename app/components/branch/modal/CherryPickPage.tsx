@@ -7,11 +7,7 @@ import { KaiLogo } from '../../common/KaiLogo';
 import { Spinner } from '../../common/Spinner';
 import { api } from '@/lib/api';
 import { cn } from '@/lib/cn';
-
-function truncate(str: string | null, max: number): string {
-  if (!str) return '';
-  return str.length > max ? str.slice(0, max) + '…' : str;
-}
+import { truncate } from './modal.utils';
 
 interface CherryPickPageProps {
   branches: Branch[];
