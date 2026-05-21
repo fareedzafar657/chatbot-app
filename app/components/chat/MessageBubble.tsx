@@ -7,6 +7,26 @@ import { MarkdownRenderer } from './MarkdownRenderer';
 import { KaiLogo } from '../common/KaiLogo';
 import { CompactCard } from './CompactCard';
 
+const SHOW_MODEL_BADGE = process.env.NEXT_PUBLIC_SHOW_MODEL_BADGE === 'true';
+
+const MODEL_LABELS: Record<string, string> = {
+  'us.anthropic.claude-3-7-sonnet-20250219-v1:0': 'Claude 3.7 Sonnet',
+  'us.anthropic.claude-3-5-sonnet-20241022-v2:0': 'Claude 3.5 Sonnet',
+  'us.anthropic.claude-3-5-haiku-20241022-v1:0':  'Claude 3.5 Haiku',
+  'anthropic.claude-sonnet-4-6':                   'Claude Sonnet 4.6',
+  'us.amazon.nova-pro-v1:0':                       'Nova Pro',
+  'us.amazon.nova-lite-v1:0':                      'Nova Lite',
+  'us.amazon.nova-micro-v1:0':                     'Nova Micro',
+  'claude-haiku-4-5-20251001':                     'Claude Haiku 4.5',
+  'claude-sonnet-4-6':                             'Claude Sonnet 4.6',
+  'gemini-2.5-flash':                              'Gemini 2.5 Flash',
+  'gemini-1.5-pro':                                'Gemini 1.5 Pro',
+};
+
+function formatModelId(modelId: string): string {
+  return MODEL_LABELS[modelId] ?? modelId;
+}
+
 function formatTime(dateStr: string): string {
   return new Date(dateStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
@@ -48,6 +68,11 @@ export function MessageBubble({ message, isStreaming }: MessageBubbleProps) {
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-1.5">
           <span className="text-[12px] font-semibold text-gray-900">K-AI</span>
+          {SHOW_MODEL_BADGE && message.modelId && (
+            <span className="text-[10px] text-gray-400 font-medium">
+              {formatModelId(message.modelId)}
+            </span>
+          )}
           {isStreaming && (
             <span className="text-[10px] text-violet-500 font-medium tracking-wide uppercase">
               Generating…

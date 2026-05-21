@@ -12,6 +12,17 @@ export const BEDROCK_MODELS = [
   },
 ] as const;
 
+// Keep in sync with DEMO_BEDROCK_MODELS in node-streaming-test/src/handlers/chat.js —
+// both lists must contain the same model IDs or the client will offer models the server rejects.
+const DEMO_BEDROCK_MODELS = [
+  {
+    value: "anthropic.claude-sonnet-4-6",
+    label: "Claude Sonnet 4.6",
+    note: "Most capable · via Bedrock",
+    disabled: false,
+  },
+] as const;
+
 // IDs from Anthropic docs (May 2026). All models are paid — no free tier.
 export const ANTHROPIC_MODELS = [
   {
@@ -145,8 +156,18 @@ export const providerAdaptors: Record<
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-export function modelsForProvider(provider: Provider | null) {
+const DEMO_ALLOWED_EMAILS = (process.env.NEXT_PUBLIC_DEMO_MODELS_ALLOWED_EMAILS ?? "")
+  .split(",").map((e) => e.trim()).filter(Boolean);
+
+export function isDemoModelAllowed(email: string | null): boolean {
+  return !!email && DEMO_ALLOWED_EMAILS.includes(email);
+}
+
+export function modelsForProvider(provider: Provider | null, userEmail: string | null = null) {
   if (provider === "anthropic") return ANTHROPIC_MODELS;
   if (provider === "gemini") return GEMINI_MODELS;
+  if (isDemoModelAllowed(userEmail)) {
+    return [...BEDROCK_MODELS, ...DEMO_BEDROCK_MODELS];
+  }
   return BEDROCK_MODELS;
 }

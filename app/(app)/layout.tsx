@@ -295,6 +295,7 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
   const user = useAuthStore((s) => s.user);
   const isLoading = useAuthStore((s) => s.isLoading);
   const initSessions = useChatStore((s) => s.initSessions);
+  const initAiConfig = useChatStore((s) => s.initAiConfig);
 
   // Auth guard
   useEffect(() => {
@@ -302,7 +303,10 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
   }, [isLoading, user, router]);
 
   useEffect(() => {
-    if (!isLoading && user) initSessions();
+    if (!isLoading && user) {
+      initSessions();
+      initAiConfig(user.email);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoading, user]);
 

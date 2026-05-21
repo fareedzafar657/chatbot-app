@@ -18,6 +18,7 @@ export interface Message {
   outputTokens?: number;
   createdAt: string;
   updatedAt: string;
+  modelId?: string;
   // Local-only — not from API
   isStreaming?: boolean;
   // Compaction fields — present only on compaction-summary messages and their originals

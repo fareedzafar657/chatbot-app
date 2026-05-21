@@ -14,7 +14,7 @@ interface StreamParams {
 }
 
 interface StreamCallbacks {
-  onMetadata(sessionId: string, branchId: string): void;
+  onMetadata(sessionId: string, branchId: string, modelId: string): void;
   onUserMessage(msgId: string): void;
   onDelta(text: string): void;
   onDone(msgId: string, state: Message['state'], inputTokens: number, outputTokens: number): void;
@@ -99,7 +99,7 @@ export async function streamChat(
           const event = JSON.parse(trimmed);
           switch (event.type) {
             case 'metadata':
-              callbacks.onMetadata(event.sessionId, event.branchId);
+              callbacks.onMetadata(event.sessionId, event.branchId, event.modelId ?? '');
               break;
             case 'userMessage':
               callbacks.onUserMessage(event.msgId);

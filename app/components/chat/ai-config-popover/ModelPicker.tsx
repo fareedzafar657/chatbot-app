@@ -6,6 +6,7 @@ import { modelsForProvider, type Provider } from "@/shared/ai-config";
 
 interface Props {
   provider: Provider | null;
+  userEmail: string | null;
   draftModel: string;
   setDraftModel: (v: string) => void;
   availability: Record<string, "available" | "unavailable">;
@@ -13,8 +14,8 @@ interface Props {
   keyEntered: boolean;
 }
 
-export function ModelPicker({ provider, draftModel, setDraftModel, availability, probing, keyEntered }: Props) {
-  const models = modelsForProvider(provider);
+export function ModelPicker({ provider, userEmail, draftModel, setDraftModel, availability, probing, keyEntered }: Props) {
+  const models = modelsForProvider(provider, userEmail);
   return (
     <div>
       {/* Header */}

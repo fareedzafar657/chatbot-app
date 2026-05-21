@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { LogOut } from 'lucide-react';
 import { useAuthStore } from '@/lib/authStore';
+import { useChatStore } from '@/lib/store';
 
 export function SidebarUserFooter() {
   const router = useRouter();
@@ -10,6 +11,7 @@ export function SidebarUserFooter() {
   const logout = useAuthStore((state) => state.logout);
 
   const handleLogout = async () => {
+    useChatStore.getState().abortController?.abort();
     await logout();
     router.push('/login');
   };

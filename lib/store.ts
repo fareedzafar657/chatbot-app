@@ -3,20 +3,29 @@ import { useShallow } from 'zustand/react/shallow';
 import { Session, Message, Branch } from '@/shared/types';
 import { api } from './api';
 import { streamChat } from './stream';
+import { useAuthStore } from './authStore';
 
 const GENERIC_ERROR = 'Something went wrong. Please try again.';
 
 // ── AI config persistence ─────────────────────────────────────────────────────
 
-const AI_CONFIG_KEY      = 'kai_ai_config';
-const AI_ANTHROPIC_KEY   = 'kai_anthropic_key';
-const AI_GEMINI_KEY      = 'kai_gemini_key';
+const AI_CONFIG_KEY    = (uid: string) => `kai_ai_config_${uid}`;
+const AI_ANTHROPIC_KEY = (uid: string) => `kai_anthropic_key_${uid}`;
+const AI_GEMINI_KEY    = (uid: string) => `kai_gemini_key_${uid}`;
 
 interface PersistedAiConfig {
   userProvider:     'anthropic' | 'gemini' | null;
   userModel:        string | null;
   userSystemPrompt: string | null;
 }
+
+const NULL_AI_CONFIG = {
+  userAnthropicKey: null,
+  userGeminiKey:    null,
+  userProvider:     null  as 'anthropic' | 'gemini' | null,
+  userModel:        null  as string | null,
+  userSystemPrompt: null  as string | null,
+};
 
 interface AiConfigSlice {
   userAnthropicKey: string | null;
@@ -26,14 +35,14 @@ interface AiConfigSlice {
   userSystemPrompt: string | null;
 }
 
-function loadAiConfig(): AiConfigSlice {
-  if (typeof window === 'undefined') {
-    return { userAnthropicKey: null, userGeminiKey: null, userProvider: null, userModel: null, userSystemPrompt: null };
-  }
+// Only loads config for the given userId — returns nulls for any other user or at SSR time.
+// Called at store init with null (no user known yet) so the initial state is always safe.
+function loadAiConfig(userId: string | null): AiConfigSlice {
+  if (typeof window === 'undefined' || !userId) return { ...NULL_AI_CONFIG };
   try {
-    const cfg          = JSON.parse(localStorage.getItem(AI_CONFIG_KEY) ?? 'null') as PersistedAiConfig | null;
-    const anthropicKey = localStorage.getItem(AI_ANTHROPIC_KEY);
-    const geminiKey    = localStorage.getItem(AI_GEMINI_KEY);
+    const cfg          = JSON.parse(localStorage.getItem(AI_CONFIG_KEY(userId)) ?? 'null') as PersistedAiConfig | null;
+    const anthropicKey = localStorage.getItem(AI_ANTHROPIC_KEY(userId));
+    const geminiKey    = localStorage.getItem(AI_GEMINI_KEY(userId));
     return {
       userAnthropicKey: anthropicKey ?? null,
       userGeminiKey:    geminiKey    ?? null,
@@ -42,26 +51,26 @@ function loadAiConfig(): AiConfigSlice {
       userSystemPrompt: cfg?.userSystemPrompt ?? null,
     };
   } catch {
-    return { userAnthropicKey: null, userGeminiKey: null, userProvider: null, userModel: null, userSystemPrompt: null };
+    return { ...NULL_AI_CONFIG };
   }
 }
 
-function persistAiConfig(state: AiConfigSlice) {
+function persistAiConfig(state: AiConfigSlice, userId: string) {
   const cfg: PersistedAiConfig = {
     userProvider:     state.userProvider,
     userModel:        state.userModel,
     userSystemPrompt: state.userSystemPrompt,
   };
-  localStorage.setItem(AI_CONFIG_KEY, JSON.stringify(cfg));
+  localStorage.setItem(AI_CONFIG_KEY(userId), JSON.stringify(cfg));
   if (state.userAnthropicKey) {
-    localStorage.setItem(AI_ANTHROPIC_KEY, state.userAnthropicKey);
+    localStorage.setItem(AI_ANTHROPIC_KEY(userId), state.userAnthropicKey);
   } else {
-    localStorage.removeItem(AI_ANTHROPIC_KEY);
+    localStorage.removeItem(AI_ANTHROPIC_KEY(userId));
   }
   if (state.userGeminiKey) {
-    localStorage.setItem(AI_GEMINI_KEY, state.userGeminiKey);
+    localStorage.setItem(AI_GEMINI_KEY(userId), state.userGeminiKey);
   } else {
-    localStorage.removeItem(AI_GEMINI_KEY);
+    localStorage.removeItem(AI_GEMINI_KEY(userId));
   }
 }
 
@@ -110,6 +119,7 @@ interface ChatState {
 
 interface ChatActions {
   initSessions(): Promise<void>;
+  initAiConfig(userId: string): void;
   loadMoreSessions(): Promise<void>;
   setActiveSession(sessionId: string): void;
   loadMessages(branchId: string, cursor?: string): Promise<void>;
@@ -160,12 +170,21 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   errorMessage: null,
   hasMoreSessions: false,
   sessionsCursor: null,
-  ...loadAiConfig(),
+  ...loadAiConfig(null),
 
   // ── Session management ────────────────────────────────────────────────────
 
   initSessions: async () => {
-    set({ isLoadingSessions: true });
+    set({
+      isLoadingSessions: true,
+      sessions: [],
+      activeSessionId: null,
+      activeBranchId: null,
+      messages: [],
+      branches: [],
+      sessionsCursor: null,
+      hasMoreSessions: false,
+    });
     try {
       const result = await api.listSessions();
       set({
@@ -257,6 +276,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   loadBranches: async (sessionId) => {
     try {
       const branches = await api.listBranches(sessionId);
+      if (get().activeSessionId !== sessionId) return;
       set((state) => ({
         branches,
         sessions: state.sessions.map((s) =>
@@ -553,7 +573,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           systemPrompt: get().userSystemPrompt,
         },
         {
-          onMetadata: (sId, bId) => {
+          onMetadata: (sId, bId, modelId) => {
             realSessionId = sId;
             realBranchId = bId;
             const isNewSession = get().activeSessionId !== sId;
@@ -561,7 +581,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
               const updatedMessages = state.messages.map((m) => ({
                 ...m,
                 sessionId: sId,
-                branchId: bId,
+                branchId:  bId,
+                ...(m.msgId === tempAiMsgId && modelId ? { modelId } : {}),
               }));
               const newSessions = isNewSession
                 ? [
@@ -708,6 +729,10 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
   // ── AI config ─────────────────────────────────────────────────────────────
 
+  initAiConfig: (userId) => {
+    set(loadAiConfig(userId));
+  },
+
   setAiConfig: (cfg) => {
     set((state) => {
       const next: AiConfigSlice = {
@@ -717,7 +742,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         userModel:        cfg.model        !== undefined ? cfg.model        : state.userModel,
         userSystemPrompt: cfg.systemPrompt !== undefined ? cfg.systemPrompt : state.userSystemPrompt,
       };
-      persistAiConfig(next);
+      const userId = useAuthStore.getState().user?.email;
+      if (userId) persistAiConfig(next, userId);
       return next;
     });
   },

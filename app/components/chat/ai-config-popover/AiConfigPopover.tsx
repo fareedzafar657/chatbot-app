@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { Settings, Check, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { modelsForProvider, type Provider } from "@/shared/ai-config";
+import { useAuthStore } from "@/lib/authStore";
 import { useAiConfigDraft } from "./useAiConfigDraft";
 import { KeyField } from "./KeyField";
 import { ModelPicker } from "./ModelPicker";
@@ -15,11 +16,12 @@ function useActiveBadge(
   userProvider: Provider | null,
   userModel: string | null,
   userSystemPrompt: string | null,
+  userEmail: string | null,
 ): string | null {
   const hasCustomConfig = userProvider !== null || userModel !== null || userSystemPrompt !== null;
   if (!hasCustomConfig) return null;
   const pLabel = userProvider === "anthropic" ? "Claude" : userProvider === "gemini" ? "Gemini" : "K-AI";
-  const mLabel = userModel ? modelsForProvider(userProvider).find((m) => m.value === userModel)?.label : null;
+  const mLabel = userModel ? modelsForProvider(userProvider, userEmail).find((m) => m.value === userModel)?.label : null;
   return mLabel ? `${pLabel} · ${mLabel}` : pLabel;
 }
 
@@ -42,8 +44,9 @@ export function AiConfigPopover() {
     return () => document.removeEventListener("mousedown", onMouseDown);
   }, [open]);
 
+  const userEmail = useAuthStore((s) => s.user?.email ?? null);
   const draft = useAiConfigDraft(open);
-  const activeBadge = useActiveBadge(draft.userProvider, draft.userModel, draft.userSystemPrompt);
+  const activeBadge = useActiveBadge(draft.userProvider, draft.userModel, draft.userSystemPrompt, userEmail);
 
   return (
     <div className="relative flex-shrink-0">
@@ -129,6 +132,7 @@ export function AiConfigPopover() {
 
             <ModelPicker
               provider={draft.provider}
+              userEmail={userEmail}
               draftModel={draft.draftModel}
               setDraftModel={draft.setDraftModel}
               availability={draft.availability}
