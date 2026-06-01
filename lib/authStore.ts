@@ -26,6 +26,7 @@ interface AuthActions {
   signup(email: string, password: string): Promise<void>;
   confirmSignUp(email: string, code: string): Promise<void>;
   getAccessToken(): Promise<string>;
+  getIdToken(): Promise<string | null>;
   restoreSession(): Promise<void>;
   updateName(name: string): Promise<void>;
 }
@@ -99,13 +100,26 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
     }
   },
 
+  getIdToken: async () => {
+    try {
+      const session = await fetchAuthSession({ forceRefresh: false });
+      return session.tokens?.idToken?.toString() ?? null;
+    } catch {
+      // non-critical: an absent ID token degrades to no demo-model access (fails closed)
+      return null;
+    }
+  },
+
   restoreSession: async () => {
     set({ isLoading: true });
     try {
       const session = await fetchAuthSession();
       const token = session.tokens?.accessToken?.toString();
       if (!token) throw new Error('No token');
-      const email = (session.tokens?.idToken?.payload?.email as string | undefined) ?? '';
+      // Without an email we can't build a real user — fail closed (treat as signed out)
+      // rather than deriving a blank name/initials from an empty string.
+      const email = session.tokens?.idToken?.payload?.email as string | undefined;
+      if (!email) throw new Error('No email in session');
       const cognitoName = session.tokens?.idToken?.payload?.name as string | undefined;
       set({ user: deriveUser(email, cognitoName), isLoading: false });
     } catch {

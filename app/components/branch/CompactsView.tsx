@@ -41,8 +41,8 @@ export function CompactsView() {
   return (
     <div className="flex flex-col gap-2 overflow-y-auto h-full py-1 pr-1">
       {compacts.map((msg) => {
-        const msgCount     = msg.originalMsgIds?.length ?? 0;
-        const saved        = (msg.tokensBefore ?? 0) - (msg.tokensAfter ?? 0);
+        const msgCount     = msg.compaction?.originalMsgIds.length ?? 0;
+        const saved        = (msg.compaction?.tokensBefore ?? 0) - (msg.compaction?.tokensAfter ?? 0);
         const isConfirming = confirmingId === msg.msgId;
         const isDeleting   = deletingId === msg.msgId;
         const date         = new Date(msg.createdAt).toLocaleDateString('en-US', {
@@ -67,7 +67,7 @@ export function CompactsView() {
 
             {/* Info */}
             <div className="flex-1 min-w-0">
-              <div className="text-[12px] font-semibold text-teal-800 truncate">{msg.compactionName}</div>
+              <div className="text-[12px] font-semibold text-teal-800 truncate">{msg.compaction?.name}</div>
               <div className="text-[11px] text-teal-600 mt-0.5">
                 {msgCount > 0 && <>{msgCount} msg{msgCount !== 1 ? 's' : ''} · </>}
                 {saved > 0 ? `saved ~${saved.toLocaleString()} tokens` : 'compacted'}

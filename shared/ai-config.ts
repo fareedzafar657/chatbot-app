@@ -12,7 +12,7 @@ export const BEDROCK_MODELS = [
   },
 ] as const;
 
-// Keep in sync with DEMO_BEDROCK_MODELS in node-streaming-test/src/handlers/chat.js —
+// Keep in sync with config.demoModels.bedrockModels in node-streaming-test/src/config.js —
 // both lists must contain the same model IDs or the client will offer models the server rejects.
 const DEMO_BEDROCK_MODELS = [
   {

@@ -107,8 +107,11 @@ export const api = {
   cherryPick: (branchId: string, data: CherryPickRequest): Promise<CherryPickResponse> =>
     client.post(`/branches/${branchId}/cherry-pick`, data).then((r) => r.data),
 
-  compact: (branchId: string, data: CompactRequest): Promise<CompactResponse> =>
-    client.post(`/branches/${branchId}/compact`, data, { timeout: 60000 }).then((r) => r.data),
+  compact: (branchId: string, data: CompactRequest, idToken?: string | null): Promise<CompactResponse> =>
+    client.post(`/branches/${branchId}/compact`, data, {
+      timeout: 60000,
+      ...(idToken && { headers: { 'X-Id-Token': idToken } }),
+    }).then((r) => r.data),
 
   deleteCompaction: (branchId: string, summaryMsgId: string): Promise<DeleteCompactionResponse> =>
     client.delete(`/branches/${branchId}/compact/${summaryMsgId}`).then((r) => r.data),

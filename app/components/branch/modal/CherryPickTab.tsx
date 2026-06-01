@@ -1,19 +1,15 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { User, ChevronDown, ArrowLeft, Search } from 'lucide-react';
+import { ChevronDown, ArrowLeft, Search } from 'lucide-react';
 import { Message, Branch } from '@/shared/types';
-import { KaiLogo } from '../../common/KaiLogo';
 import { Spinner } from '../../common/Spinner';
 import { api } from '@/lib/api';
 import { cn } from '@/lib/cn';
+import { truncate } from './modal.utils';
+import { MessagePreviewRow, SelectedPreviewCard } from './MessagePreviewRow';
 
-function truncate(str: string | null, max: number): string {
-  if (!str) return '';
-  return str.length > max ? str.slice(0, max) + '…' : str;
-}
-
-interface CherryPickPageProps {
+interface CherryPickTabProps {
   branches: Branch[];
   activeBranchId: string;
   selectedIds: string[];
@@ -23,7 +19,7 @@ interface CherryPickPageProps {
   onBack: () => void;
 }
 
-export function CherryPickPage({
+export function CherryPickTab({
   branches,
   activeBranchId,
   selectedIds,
@@ -31,7 +27,7 @@ export function CherryPickPage({
   onToggle,
   onConfirm,
   onBack,
-}: CherryPickPageProps) {
+}: CherryPickTabProps) {
   const [branchMessages, setBranchMessages] = useState<Record<string, Message[]>>({});
   const [branchCursors, setBranchCursors] = useState<Record<string, string | null>>({});
   const [branchHasMore, setBranchHasMore] = useState<Record<string, boolean>>({});
@@ -152,7 +148,7 @@ export function CherryPickPage({
                 {otherBranches.map((branch) => {
                   const isExpanded = expandedBranches.has(branch.branchId);
                   const messages = branchMessages[branch.branchId] ?? [];
-                  const totalCount = branch.selectedMsgIds?.length ?? 0;
+                  const totalCount = messages.length;
                   const hasMore = branchHasMore[branch.branchId] ?? false;
                   const isLoadingInit = loadingInitial.has(branch.branchId);
                   const isLoadingMore = loadingMore.has(branch.branchId);
@@ -195,7 +191,6 @@ export function CherryPickPage({
                               {filteredMessages.map((msg) => {
                                 const isSelected = selectedIds.includes(msg.msgId);
                                 const selectionIndex = selectedIds.indexOf(msg.msgId) + 1;
-                                const isUser = msg.role === 'user';
 
                                 // Non-interactive rows for compacted/summary messages from other branches
                                 if (msg.state === 'compacted') {
@@ -222,6 +217,7 @@ export function CherryPickPage({
                                       isSelected ? 'bg-amber-100 hover:bg-amber-200' : 'bg-white hover:bg-gray-100'
                                     )}
                                   >
+                                    {/* Selection-order badge */}
                                     <div
                                       className={cn(
                                         'flex-shrink-0 w-5 h-5 rounded border flex items-center justify-center text-[9px] font-bold transition-colors',
@@ -233,24 +229,14 @@ export function CherryPickPage({
                                       {isSelected ? selectionIndex : ''}
                                     </div>
 
-                                    {isUser ? (
-                                      <div className="flex-shrink-0 w-4 h-4 rounded-full bg-gray-700 flex items-center justify-center">
-                                        <User className="w-2 h-2 text-white" />
-                                      </div>
-                                    ) : (
-                                      <div className="flex-shrink-0 w-4 h-4 rounded overflow-hidden">
-                                        <KaiLogo size={16} />
-                                      </div>
-                                    )}
-
-                                    <div className="flex-1 min-w-0">
-                                      <div className={cn('text-[10px] font-semibold mb-0.5', isUser ? 'text-gray-700' : 'text-violet-700')}>
-                                        {isUser ? 'You' : 'K-AI'}
-                                      </div>
-                                      <div className="text-[11px] text-gray-600 leading-snug line-clamp-2">
-                                        {truncate(msg.content, 60)}
-                                      </div>
-                                    </div>
+                                    <MessagePreviewRow
+                                      message={msg}
+                                      avatarSize={16}
+                                      truncateAt={60}
+                                      clampClass="line-clamp-2"
+                                      labelClass="text-[10px]"
+                                      contentClass="text-[11px]"
+                                    />
                                   </button>
                                 );
                               })}
@@ -296,36 +282,15 @@ export function CherryPickPage({
 
                   if (!msg) return null;
 
-                  const isUser = msg.role === 'user';
-
                   return (
-                    <div
+                    <SelectedPreviewCard
                       key={msgId}
-                      className="flex items-start gap-2.5 p-3 bg-gray-50 rounded-lg border border-gray-200"
-                    >
-                      <div className="flex-shrink-0 w-6 h-6 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-[11px] font-bold">
-                        {index + 1}
-                      </div>
-
-                      {isUser ? (
-                        <div className="flex-shrink-0 w-4 h-4 rounded-full bg-gray-700 flex items-center justify-center">
-                          <User className="w-2 h-2 text-white" />
-                        </div>
-                      ) : (
-                        <div className="flex-shrink-0 w-4 h-4 rounded overflow-hidden">
-                          <KaiLogo size={16} />
-                        </div>
-                      )}
-
-                      <div className="flex-1 min-w-0">
-                        <div className={cn('text-[10px] font-semibold mb-0.5', isUser ? 'text-gray-700' : 'text-violet-700')}>
-                          {isUser ? 'You' : 'K-AI'}
-                        </div>
-                        <div className="text-[11px] text-gray-600 leading-snug line-clamp-3">
-                          {truncate(msg.content, 80)}
-                        </div>
-                      </div>
-                    </div>
+                      message={msg}
+                      index={index}
+                      accent="amber"
+                      truncateAt={80}
+                      clampClass="line-clamp-3"
+                    />
                   );
                 })}
               </div>

@@ -13,20 +13,21 @@ export interface Message {
   state: 'active' | 'stopped' | 'edited' | 'deleted' | 'compacted';
   /** absent on optimistic local messages created before the server responds */
   userId?: string;
-  parentMsgId?: string;
   inputTokens?: number;
   outputTokens?: number;
   createdAt: string;
   updatedAt: string;
   modelId?: string;
-  // Local-only — not from API
-  isStreaming?: boolean;
-  // Compaction fields — present only on compaction-summary messages and their originals
+  // Discriminator + per-state compaction metadata
   type?: 'compaction-summary';
-  compactionName?: string;
-  originalMsgIds?: string[];
-  tokensBefore?: number;
-  tokensAfter?: number;
+  /** Set when type === 'compaction-summary' */
+  compaction?: {
+    name: string;
+    originalMsgIds: string[];
+    tokensBefore: number;
+    tokensAfter: number;
+  };
+  /** Set when state === 'compacted' */
   compactedBy?: { summaryMsgId: string; name: string };
 }
 
@@ -35,13 +36,10 @@ export interface Branch {
   sessionId: string;
   parentBranchId?: string;
   parentMsgId?: string;
-  /** Message IDs carried over from the parent branch when forking */
-  selectedMsgIds: string[];
   label: string;
   createdAt: string;
   // Local-only — not from API
   description?: string;
-  messageCount?: number;
 }
 
 export interface Session {
@@ -60,7 +58,6 @@ export interface Session {
 export interface PaginatedMessages {
   items: Message[];
   count: number;
-  page: number;
   pageSize: number;
   hasMore: boolean;
   nextCursor?: string;
@@ -69,7 +66,6 @@ export interface PaginatedMessages {
 export interface PaginatedSessions {
   items: Session[];
   count: number;
-  page: number;
   pageSize: number;
   hasMore: boolean;
   nextCursor?: string;
@@ -145,4 +141,5 @@ export interface UsageStats {
   estimatedCostUsd: number;
   dailyUsage: DailyUsage[];
   modelBreakdown: ModelBreakdown[];
+  truncated: boolean;
 }

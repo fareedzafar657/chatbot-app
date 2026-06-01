@@ -11,8 +11,8 @@ interface CompactCardProps {
 
 export function CompactCard({ message }: CompactCardProps) {
   const [expanded, setExpanded] = useState(false);
-  const msgCount = message.originalMsgIds?.length ?? 0;
-  const saved = (message.tokensBefore ?? 0) - (message.tokensAfter ?? 0);
+  const msgCount = message.compaction?.originalMsgIds.length ?? 0;
+  const saved = (message.compaction?.tokensBefore ?? 0) - (message.compaction?.tokensAfter ?? 0);
 
   return (
     <div className="flex justify-center mb-5">
@@ -27,7 +27,7 @@ export function CompactCard({ message }: CompactCardProps) {
             <div className="w-2 h-0.5 bg-teal-400 rounded-full" />
           </div>
 
-          <span className="text-[12px] font-semibold">{message.compactionName}</span>
+          <span className="text-[12px] font-semibold">{message.compaction?.name}</span>
 
           <span className="text-[11px] text-teal-500 whitespace-nowrap">
             {msgCount > 0 && <>{msgCount} msg{msgCount !== 1 ? 's' : ''} · </>}

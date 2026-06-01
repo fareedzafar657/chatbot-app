@@ -307,7 +307,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       set((state) => ({
         branches: [...state.branches, newBranch],
         activeBranchId: newBranch.branchId,
-        messages: state.messages.filter(m => selectedMsgIds.includes(m.msgId)),
+        messages: [],
+        isLoadingMessages: true,
         isForkingBranch: false,
         showBranchModal: false,
         sessions: state.sessions.map((s) =>
@@ -316,6 +317,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             : s
         ),
       }));
+
+      await get().loadMessages(newBranch.branchId);
     } catch {
       set({ errorMessage: GENERIC_ERROR, isForkingBranch: false });
     }
@@ -358,9 +361,6 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
       set((state) => ({
         messages: [...state.messages, ...result.newMessages],
-        branches: state.branches.map((b) =>
-          b.branchId === activeBranchId ? result.branch : b
-        ),
         showBranchModal: false,
       }));
     } catch {
@@ -382,6 +382,12 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         : userProvider === 'anthropic' ? 'claude-haiku-4-5-20251001'
         : null);
 
+    // Fetch ID token only when a non-default Bedrock model is selected — the backend
+    // uses it to verify the user is on the demo allowlist before accepting the model.
+    const idToken = !userProvider && userModel
+      ? await useAuthStore.getState().getIdToken()
+      : null;
+
     try {
       const result = await api.compact(activeBranchId, {
         msg_ids: msgIds,
@@ -391,7 +397,9 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           model: resolvedModel,
           api_key: apiKey,
         }),
-      });
+        // Bedrock: no provider/api_key needed; pass model only when user selected a non-default one
+        ...(!userProvider && userModel && { model: userModel }),
+      }, idToken);
 
       set((state) => {
         const idSet = new Set(msgIds);
@@ -406,22 +414,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         const idx = lastIdx === -1 ? marked.length : lastIdx + 1;
         marked.splice(idx, 0, result.summaryMessage);
 
-        // Without this, the branch modal sort (which relies on selectedMsgIds positions) would
-        // have no entry for the new summary → originals would sort before it instead of after.
-        const branches = state.branches.map((b) => {
-          if (b.branchId !== activeBranchId) return b;
-          const current = b.selectedMsgIds;
-          const firstIdx = current.findIndex((id) => idSet.has(id));
-          if (firstIdx === -1) return { ...b, selectedMsgIds: [...current, result.summaryMessage.msgId] };
-          const newSelected = [
-            ...current.slice(0, firstIdx),
-            result.summaryMessage.msgId,
-            ...current.slice(firstIdx).filter((id) => !idSet.has(id)),
-          ];
-          return { ...b, selectedMsgIds: newSelected };
-        });
-
-        return { messages: marked, branches, isCompacting: false, showBranchModal: false };
+        return { messages: marked, isCompacting: false, showBranchModal: false };
       });
     } catch {
       set({ errorMessage: GENERIC_ERROR, isCompacting: false });
@@ -433,7 +426,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     if (!activeBranchId) return;
 
     const summary = messages.find((m) => m.msgId === summaryMsgId);
-    const originalIdList = summary?.originalMsgIds ?? [];
+    const originalIdList = summary?.compaction?.originalMsgIds ?? [];
     const originalIds = new Set(originalIdList);
 
     try {
@@ -442,17 +435,6 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         messages: state.messages
           .filter((m) => m.msgId !== summaryMsgId)
           .map((m) => originalIds.has(m.msgId) ? { ...m, state: 'active' as const, compactedBy: undefined } : m),
-        branches: state.branches.map((b) => {
-          if (b.branchId !== activeBranchId) return b;
-          const idx = b.selectedMsgIds.indexOf(summaryMsgId);
-          if (idx === -1) return b;
-          const newSelected = [
-            ...b.selectedMsgIds.slice(0, idx),
-            ...originalIdList,
-            ...b.selectedMsgIds.slice(idx + 1),
-          ];
-          return { ...b, selectedMsgIds: newSelected };
-        }),
       }));
     } catch {
       set({ errorMessage: GENERIC_ERROR });
@@ -588,7 +570,9 @@ export const useChatStore = create<ChatStore>((set, get) => ({
                 ? [
                     {
                       sessionId: sId,
-                      userId: '',
+                      // Use the known user id for the transient optimistic session rather than
+                      // an empty placeholder; the real value arrives on the next listSessions().
+                      userId: useAuthStore.getState().user?.email ?? '',
                       trunkBranchId: bId,
                       activeBranchId: bId,
                       title: prompt.slice(0, 45) + (prompt.length > 45 ? '…' : ''),
@@ -639,6 +623,9 @@ export const useChatStore = create<ChatStore>((set, get) => ({
               abortController: null,
             }));
 
+            // Background refreshes after a successful send — the message is already rendered,
+            // so a transient failure here must NOT surface an error toast over a send that
+            // actually succeeded. Log for operators and leave the UI as-is.
             api
               .listSessions()
               .then((result) => {
@@ -652,7 +639,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
                   sessionsCursor: result.nextCursor ?? null,
                 }));
               })
-              .catch(() => useChatStore.setState({ errorMessage: GENERIC_ERROR }));
+              .catch((err) => console.warn('[store] post-send session refresh failed', err));
 
             if (realSessionId) {
               api
@@ -667,7 +654,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
                     ),
                   }));
                 })
-                .catch(() => useChatStore.setState({ errorMessage: GENERIC_ERROR }));
+                .catch((err) => console.warn('[store] post-send branch refresh failed', err));
             }
           },
 

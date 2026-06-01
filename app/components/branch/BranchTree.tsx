@@ -77,14 +77,13 @@ function layoutBranches(branches: Branch[]): PositionMap {
 
 interface BranchNodeData {
   label: string;
-  msgCount: number;
   kidCount: number;
   isActive: boolean;
   onClick: () => void;
 }
 
 function BranchNode({ data }: { data: BranchNodeData }) {
-  const { label, msgCount, kidCount, isActive, onClick } = data;
+  const { label, kidCount, isActive, onClick } = data;
   const truncated = label.length > 14 ? label.slice(0, 13) + '…' : label;
 
   return (
@@ -119,8 +118,7 @@ function BranchNode({ data }: { data: BranchNodeData }) {
       </div>
 
       <span className={cn('text-[10px]', isActive ? 'text-white/70' : 'text-gray-400')}>
-        {msgCount} message{msgCount !== 1 ? 's' : ''}
-        {kidCount > 0 ? ` · ${kidCount} fork${kidCount > 1 ? 's' : ''}` : ''}
+        {kidCount > 0 ? `${kidCount} fork${kidCount > 1 ? 's' : ''}` : 'no forks'}
       </span>
     </div>
   );
@@ -148,7 +146,6 @@ export function BranchTree({ branches, activeBranchId, onSwitchBranch }: BranchT
       position: positions[branch.branchId],
       data: {
         label:    branch.label,
-        msgCount: branch.selectedMsgIds.length,
         kidCount: (childMap[branch.branchId] ?? []).length,
         isActive: branch.branchId === activeBranchId,
         onClick:  () => onSwitchBranch(branch.branchId),

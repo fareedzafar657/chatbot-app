@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { ConfirmDialog } from '../../common/ConfirmDialog';
 import { useChatStore, useActiveSession, useActiveBranch, useActiveMessages } from '@/lib/store';
@@ -9,24 +9,10 @@ import { Spinner } from '../../common/Spinner';
 import { MessageSelector } from './MessageSelector';
 import { OperationsPanel } from './OperationsPanel';
 import { RightPanel } from './RightPanel';
-import { CherryPickPage } from './CherryPickPage';
-import { CompactPage, selectableIds } from './CompactPage';
+import { CherryPickTab } from './CherryPickTab';
+import { CompactTab, selectableIds } from './CompactTab';
 import { Operation, RightTab } from '@/shared/branch-modal';
-import { type Message } from '@/shared/types';
 
-// Compacted originals are not in selectedMsgIds — place them right after their summary
-function sortByBranchOrder(messages: Message[], selectedMsgIds: string[]): Message[] {
-  const posMap = new Map(selectedMsgIds.map((id, i) => [id, i]));
-  return [...messages].sort((a, b) => {
-    const posA = posMap.has(a.msgId)
-      ? posMap.get(a.msgId)!
-      : (posMap.get(a.compactedBy?.summaryMsgId ?? '') ?? 0) + 0.5;
-    const posB = posMap.has(b.msgId)
-      ? posMap.get(b.msgId)!
-      : (posMap.get(b.compactedBy?.summaryMsgId ?? '') ?? 0) + 0.5;
-    return posA - posB;
-  });
-}
 
 export function BranchModal() {
   const toggleBranchModal  = useChatStore((s) => s.toggleBranchModal);
@@ -42,10 +28,7 @@ export function BranchModal() {
   const activeBranch   = useActiveBranch();
   const activeMessages = useActiveMessages();
 
-  const selectorMessages = useMemo(
-    () => sortByBranchOrder(activeMessages, activeBranch?.selectedMsgIds ?? []),
-    [activeMessages, activeBranch?.selectedMsgIds],
-  );
+  const selectorMessages = activeMessages;
 
   // True while messages are still loading — hide selector until all pages are present.
   // Initialise from both flags: hasMoreMessages covers the common case; isLoadingMessages
@@ -215,7 +198,7 @@ export function BranchModal() {
 
         {/* Full-page overlays */}
         {operation === 'cherry-pick' ? (
-          <CherryPickPage
+          <CherryPickTab
             branches={branches}
             activeBranchId={activeBranch?.branchId ?? ''}
             selectedIds={cherrySelectedIds}
@@ -228,7 +211,7 @@ export function BranchModal() {
             }}
           />
         ) : operation === 'compact' ? (
-          <CompactPage
+          <CompactTab
             messages={selectorMessages}
             selectedIds={compactSelectedIds}
             compactName={compactName}

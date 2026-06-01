@@ -9,7 +9,7 @@ Update this file whenever a feature is implemented or a backend contract changes
 
 ### AI Pick
 **Status:** Disabled (button visible but non-functional)
-**Location:** `app/components/BranchModal/MessageSelector.tsx`, `lib/store.ts:autoSelectMessages`
+**Location:** `app/components/branch/modal/MessageSelector.tsx`, `lib/store.ts:autoSelectMessages`
 **Idea:** When clicked, POST all messages from the active branch to a dedicated API endpoint. The AI selects the most relevant messages, optionally guided by a user preference string (e.g. "focus on the auth discussion"). Returns a list of message IDs to pre-select in the branch modal.
 **Needs:**
 - New Lambda / API route (`POST /branches/ai-pick` or similar)
@@ -20,7 +20,7 @@ Update this file whenever a feature is implemented or a backend contract changes
 
 ### Session Title Generation
 **Status:** Hardcoded fallback — title defaults to the first 45 characters of the user's first message (set client-side in `lib/store.ts:onMetadata`)
-**Location:** `lib/store.ts` (~line 303), `app/components/Sidebar.tsx` (`session.title ?? 'New Conversation'`)
+**Location:** `lib/store.ts:sendMessage` (title set in the `onMetadata` callback as `prompt.slice(0, 45)`), `app/components/sidebar/SessionItem.tsx` (`DEFAULT_SESSION_TITLE = 'New Conversation'`)
 **Idea:** After the first AI response is complete, call an API that generates a short, descriptive title for the session using the first user message and AI reply as context.
 **Needs:**
 - New Lambda / API route (`POST /sessions/:id/generate-title` or via streaming metadata)
@@ -85,7 +85,7 @@ Update this file whenever a feature is implemented or a backend contract changes
 
 ### Suggestion Chips
 **Status:** Hardcoded — three static suggestions shown on the empty chat screen
-**Location:** `app/components/SuggestionChips.tsx` (`SUGGESTIONS` constant)
+**Location:** `app/components/chat/SuggestionChips.tsx` (`SUGGESTIONS` constant)
 **Idea:** Read the most recent session from the sidebar (title + last few messages) and POST to an API that returns contextually relevant follow-up suggestions for the user.
 **Needs:**
 - New API route (`POST /suggestions` or similar) that accepts recent session context
@@ -94,11 +94,18 @@ Update this file whenever a feature is implemented or a backend contract changes
 
 ---
 
+### Settings Tabs Hidden from Nav
+**Status:** Denav-ed — `SpendingTab` and `AppearanceTab` components exist but are commented out of `SETTINGS_TABS` in `app/(app)/layout.tsx`, so they are unreachable from the settings nav. This is intentional: both are gated behind incomplete backends (billing API for Spending, theme-persistence API for Appearance — see entries above). Components are kept, not deleted.
+**Location:** `app/(app)/layout.tsx` (`SETTINGS_TABS`, commented entries), `app/components/settings/SpendingTab.tsx`, `app/components/settings/AppearanceTab.tsx`
+**Fix:** Re-add the tab entries to `SETTINGS_TABS` once their respective backends land.
+
+---
+
 ## Backend Gaps — API Changes Required
 
 ### Branch Count in Session List
 **Status:** `branchCount` on `Session` is local-only — populated only after `loadBranches()` is called when the user opens a session. Sidebar never shows branch counts on initial load.
-**Location:** `lib/types.ts:Session.branchCount`, `app/components/Sidebar.tsx` (top-of-file comment)
+**Location:** `shared/types.ts:Session.branchCount` (the sidebar reads `session.branchCount` after `loadBranches()` populates it client-side)
 **Fix:** Include `branch_count` in the `GET /sessions` list response. Wire it into `PaginatedSessions` → `Session` on the frontend once available.
 
 ---
@@ -106,19 +113,16 @@ Update this file whenever a feature is implemented or a backend contract changes
 ## Hardcoded / Local-Only Data
 
 ### User Profile Fallbacks in Sidebar
-**Status:** Sidebar shows `'JD'` / `'John Doe'` / `'john@example.com'` if `user` fields are missing
-**Location:** `app/components/Sidebar.tsx` lines ~282–289
-**Fix:** Remove fake fallbacks once auth is confirmed to always populate `user.name`, `user.initials`, and `user.email`. Guard at the render level instead (don't render the profile row if `user` is null).
+**Status:** Resolved — `SidebarUserFooter` renders `user.initials` / `user.name` / `user.email` directly with no fake fallbacks (`user` is non-null asserted, guaranteed by the auth guard in `app/(app)/layout.tsx`). The blank-user fallback in `authStore.restoreSession` (deriving a name from an empty email) has been removed — restore now fails closed (signed out) when no email is present.
+**Location:** `app/components/sidebar/SidebarUserFooter.tsx`, `lib/authStore.ts:restoreSession`
 
 ### `Branch.description`
 **Status:** Local-only field, not returned by the API
-**Location:** `lib/types.ts:Branch.description`
+**Location:** `shared/types.ts:Branch.description`
 **Fix:** Add `description` to the branch schema and return it from `GET /branches/session/:id` if the field is needed in the UI.
 
 ### `Branch.messageCount`
-**Status:** Local-only field, not returned by the API. Currently `selectedMsgIds.length` is used as a proxy.
-**Location:** `lib/types.ts:Branch.messageCount`
-**Fix:** Either remove the field (since `selectedMsgIds.length` is already available) or have the backend return an accurate live count.
+**Status:** Removed — `selectedMsgIds` has been removed; message count no longer displayed in branch tree/versions table.
 
 ---
 
