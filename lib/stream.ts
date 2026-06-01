@@ -2,6 +2,7 @@ import type { Message } from '@/shared/types';
 
 const STREAMING_URL = process.env.NEXT_PUBLIC_STREAMING_LAMBDA_URL!;
 const STREAM_TIMEOUT_MS = 30_000;
+const GENERIC_STREAM_ERROR = 'Something went wrong. Please try again.';
 
 interface StreamParams {
   prompt: string;
@@ -27,7 +28,15 @@ export async function streamChat(
   signal: AbortSignal
 ): Promise<void> {
   const { useAuthStore } = await import('./authStore');
-  const token = await useAuthStore.getState().getAccessToken();
+
+  // Fetch the ID token only when a non-BYOK model is explicitly selected — the backend
+  // uses it solely to verify the user is on the demo allowlist (extractEmail in the
+  // streaming Lambda is optional and never blocks the request). Mirrors compactBranch.
+  const needsIdToken = !params.provider && Boolean(params.model);
+  const [token, idToken] = await Promise.all([
+    useAuthStore.getState().getAccessToken(),
+    needsIdToken ? useAuthStore.getState().getIdToken() : Promise.resolve(null),
+  ]);
 
   const timeoutSignal = AbortSignal.timeout(STREAM_TIMEOUT_MS);
   const combinedSignal = AbortSignal.any([signal, timeoutSignal]);
@@ -37,8 +46,9 @@ export async function streamChat(
     response = await fetch(STREAMING_URL, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${token}`,
+        Authorization:  `Bearer ${token}`,
         'Content-Type': 'application/json',
+        ...(idToken && { 'X-Id-Token': idToken }),
       },
       body: JSON.stringify({
         prompt:    params.prompt,
@@ -97,45 +107,74 @@ export async function streamChat(
         if (!trimmed) continue;
         try {
           const event = JSON.parse(trimmed);
-          switch (event.type) {
-            case 'metadata':
-              callbacks.onMetadata(event.sessionId, event.branchId, event.modelId ?? '');
-              break;
-            case 'userMessage':
-              callbacks.onUserMessage(event.msgId);
-              break;
-            case 'delta':
-              callbacks.onDelta(event.text);
-              break;
-            case 'done':
-              callbacks.onDone(event.msgId, event.state, event.inputTokens, event.outputTokens);
-              break;
-            case 'error':
-              callbacks.onError(event.message);
-              break;
-          }
+          dispatchEvent(event, callbacks);
         } catch {
-          // Skip malformed NDJSON lines
+          // A single corrupt/partial line shouldn't abort the stream; warn in dev so
+          // protocol drift is diagnosable, then continue with the next line.
+          console.warn('[stream] skipping unparseable line', trimmed);
         }
       }
     }
 
-    // Flush any remaining buffer content
+    // Flush any remaining buffer content (a final line without a trailing newline)
     if (buffer.trim()) {
       try {
-        const event = JSON.parse(buffer.trim());
-        if (event.type === 'done') {
-          callbacks.onDone(event.msgId, event.state, event.inputTokens, event.outputTokens);
-        } else if (event.type === 'error') {
-          callbacks.onError(event.message);
-        }
+        dispatchEvent(JSON.parse(buffer.trim()), callbacks);
       } catch {
-        // Ignore
+        console.warn('[stream] skipping unparseable trailing buffer', buffer.trim());
       }
     }
   } catch (err) {
     if ((err as Error).name !== 'AbortError') {
-      callbacks.onError((err as Error).message);
+      console.error('[stream] read failed', err);
+      callbacks.onError(GENERIC_STREAM_ERROR);
     }
+  }
+}
+
+// ─── Event dispatch ───────────────────────────────────────────────────────────
+
+interface StreamEvent {
+  type?: string;
+  sessionId?: string;
+  branchId?: string;
+  modelId?: string;
+  msgId?: string;
+  text?: string;
+  state?: Message['state'];
+  inputTokens?: number;
+  outputTokens?: number;
+  message?: string;
+}
+
+// Validates each event against the streaming Lambda's NDJSON contract before invoking the
+// typed callbacks. The backend guarantees these fields, so a missing one means a corrupt or
+// drifted payload — we drop the malformed event rather than forward `undefined` into the UI.
+function dispatchEvent(event: StreamEvent, callbacks: StreamCallbacks): void {
+  switch (event.type) {
+    case 'metadata':
+      if (event.sessionId && event.branchId) {
+        callbacks.onMetadata(event.sessionId, event.branchId, event.modelId ?? '');
+      }
+      break;
+    case 'userMessage':
+      if (event.msgId) callbacks.onUserMessage(event.msgId);
+      break;
+    case 'delta':
+      if (typeof event.text === 'string') callbacks.onDelta(event.text);
+      break;
+    case 'done':
+      // state is always present on a real 'done'; msgId may be null when the model produced
+      // no assistant text — still finalize so isStreaming is cleared either way.
+      if (event.state) {
+        callbacks.onDone(event.msgId ?? '', event.state, event.inputTokens ?? 0, event.outputTokens ?? 0);
+      }
+      break;
+    case 'error':
+      // Don't surface the backend's raw error string to the user — log it for operators
+      // and show generic copy (mirrors the HTTP error handling above).
+      console.error('[stream] server error event', event.message);
+      callbacks.onError(GENERIC_STREAM_ERROR);
+      break;
   }
 }

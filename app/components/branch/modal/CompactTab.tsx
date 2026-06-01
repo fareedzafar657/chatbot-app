@@ -1,12 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { User, ArrowLeft, Minimize2 } from 'lucide-react';
+import { ArrowLeft, Minimize2 } from 'lucide-react';
 import { type Message } from '@/shared/types';
-import { KaiLogo } from '../../common/KaiLogo';
 import { Spinner } from '../../common/Spinner';
 import { cn } from '@/lib/cn';
 import { truncate } from './modal.utils';
+import { MessagePreviewRow, SelectedPreviewCard } from './MessagePreviewRow';
 
 const TRUNCATE_COMPACT_ROW  = 60;  // compact/summary rows in the message list
 const TRUNCATE_LIST_ITEM    = 80;  // selectable messages in the left panel
@@ -24,7 +24,7 @@ function estimateTokens(messages: Message[]): number {
   );
 }
 
-interface CompactPageProps {
+interface CompactTabProps {
   messages: Message[];
   selectedIds: string[];
   compactName: string;
@@ -37,7 +37,7 @@ interface CompactPageProps {
   onSelectNone: () => void;
 }
 
-export function CompactPage({
+export function CompactTab({
   messages,
   selectedIds,
   compactName,
@@ -48,7 +48,7 @@ export function CompactPage({
   onBack,
   onSelectAll,
   onSelectNone,
-}: CompactPageProps) {
+}: CompactTabProps) {
   const [nameError, setNameError] = useState(false);
 
   const selectedSet = new Set(selectableIds(messages).filter((id) => selectedIds.includes(id)));
@@ -109,7 +109,6 @@ export function CompactPage({
                 if (msg.type === 'compaction-summary') return <SummaryRow key={msg.msgId} msg={msg} />;
 
                 const isSelected = selectedIds.includes(msg.msgId);
-                const isUser = msg.role === 'user';
 
                 return (
                   <button
@@ -130,26 +129,14 @@ export function CompactPage({
                       {isSelected && <div className="w-1.5 h-1.5 bg-white rounded-sm" />}
                     </div>
 
-                    {/* Avatar */}
-                    {isUser ? (
-                      <div className="flex-shrink-0 w-5 h-5 rounded-full bg-gray-700 flex items-center justify-center mt-0.5">
-                        <User className="w-3 h-3 text-white" />
-                      </div>
-                    ) : (
-                      <div className="flex-shrink-0 w-5 h-5 rounded-md overflow-hidden mt-0.5">
-                        <KaiLogo size={20} />
-                      </div>
-                    )}
-
-                    {/* Content */}
-                    <div className="flex-1 min-w-0">
-                      <div className={cn('text-[11px] font-semibold mb-0.5', isUser ? 'text-gray-700' : 'text-violet-700')}>
-                        {isUser ? 'You' : 'K-AI'}
-                      </div>
-                      <div className="text-[12px] text-gray-600 leading-snug line-clamp-2">
-                        {truncate(msg.content, TRUNCATE_LIST_ITEM)}
-                      </div>
-                    </div>
+                    <MessagePreviewRow
+                      message={msg}
+                      avatarSize={20}
+                      truncateAt={TRUNCATE_LIST_ITEM}
+                      clampClass="line-clamp-2"
+                      labelClass="text-[11px]"
+                      contentClass="text-[12px]"
+                    />
                   </button>
                 );
               })
@@ -195,36 +182,16 @@ export function CompactPage({
               </div>
             ) : (
               <div className="space-y-2">
-                {selectedMessages.map((msg, index) => {
-                  const isUser = msg.role === 'user';
-                  return (
-                    <div
-                      key={msg.msgId}
-                      className="flex items-start gap-2.5 p-3 bg-gray-50 rounded-lg border border-gray-200"
-                    >
-                      <div className="flex-shrink-0 w-6 h-6 rounded-full bg-teal-100 text-teal-700 flex items-center justify-center text-[11px] font-bold">
-                        {index + 1}
-                      </div>
-                      {isUser ? (
-                        <div className="flex-shrink-0 w-4 h-4 rounded-full bg-gray-700 flex items-center justify-center">
-                          <User className="w-2 h-2 text-white" />
-                        </div>
-                      ) : (
-                        <div className="flex-shrink-0 w-4 h-4 rounded overflow-hidden">
-                          <KaiLogo size={16} />
-                        </div>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <div className={cn('text-[10px] font-semibold mb-0.5', isUser ? 'text-gray-700' : 'text-violet-700')}>
-                          {isUser ? 'You' : 'K-AI'}
-                        </div>
-                        <div className="text-[11px] text-gray-600 leading-snug line-clamp-3">
-                          {truncate(msg.content, TRUNCATE_PREVIEW_ITEM)}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
+                {selectedMessages.map((msg, index) => (
+                  <SelectedPreviewCard
+                    key={msg.msgId}
+                    message={msg}
+                    index={index}
+                    accent="teal"
+                    truncateAt={TRUNCATE_PREVIEW_ITEM}
+                    clampClass="line-clamp-3"
+                  />
+                ))}
               </div>
             )}
           </div>
@@ -284,7 +251,7 @@ function SummaryRow({ msg }: { msg: Message }) {
       <Minimize2 className="flex-shrink-0 w-4 h-4 text-teal-600 mt-0.5" />
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5 mb-0.5">
-          <span className="text-[10px] font-semibold text-teal-700">{msg.compactionName}</span>
+          <span className="text-[10px] font-semibold text-teal-700">{msg.compaction?.name}</span>
           <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-teal-100 text-teal-600 font-medium">
             summary
           </span>

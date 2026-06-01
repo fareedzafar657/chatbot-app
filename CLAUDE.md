@@ -11,7 +11,7 @@
 - **State:** Zustand — `lib/store.ts` (chat), `lib/authStore.ts` (auth). Never use `useReducer` or React context for global state.
 - **Auth:** AWS Cognito via Amplify (`lib/amplify.ts`). Call Cognito directly from the frontend for user-pool operations (`signIn`, `signOut`, `updatePassword`, `updateUserAttributes`). Use backend proxy only for admin-level operations.
 - **API:** `lib/api.ts` wraps every backend call. Never call `fetch` or `axios` directly from components.
-- **Streaming:** `lib/stream.ts` — uses `ReadableStream` + server-sent events. Don't add new streaming logic inline in components.
+- **Streaming:** `lib/stream.ts` — uses `fetch` + `ReadableStream` to parse the NDJSON token stream from the streaming Lambda (`application/x-ndjson`, one JSON object per `\n`-delimited line; not SSE). Don't add new streaming logic inline in components.
 
 ---
 
@@ -32,7 +32,7 @@
 - Check these locations before creating new components:
   - `app/components/common/` — generic shared components (`Spinner` is already here)
   - `app/components/settings/Section.tsx` — layout wrapper for settings tab sections
-  - `app/components/SidebarUserFooter.tsx` — user avatar/name/email/logout; used by both sidebars
+  - `app/components/sidebar/SidebarUserFooter.tsx` — user avatar/name/email/logout; used by both sidebars
 
 ---
 
@@ -58,8 +58,7 @@ See `BACKLOG.md` for full details. Summary:
 
 | Feature | Status |
 |---------|--------|
-| AI Pick button | Non-functional stub |
-| Cherry Pick | Non-functional stub |
+| AI Pick button | Non-functional stub (`autoSelectMessages` returns `[]` in `lib/store.ts`) |
 | Google / GitHub OAuth | Buttons present, no handler |
 | Forgot Password | Link present, no handler |
 | General Settings Save | Button disabled (no profile API) |
@@ -108,6 +107,7 @@ Everything that is a type, interface, constant, or hardcoded config belongs in `
 |------|---------------|
 | `shared/types.ts` | All domain and API types — `Message`, `Branch`, `Session`, paginated wrappers, request payloads, usage stats |
 | `shared/branch-modal.ts` | Branch modal UI types (`RightTab`, `Operation`, `OperationButton`) and constants (`OP_BUTTONS`, `RIGHT_TABS`) |
+| `shared/ai-config.ts` | AI provider config — `BEDROCK_MODELS` / `ANTHROPIC_MODELS` / `GEMINI_MODELS`, `PROMPT_SUGGESTIONS`, the demo-model allowlist helper, and BYOK availability probes |
 
 **Rules:**
 - **New domain or API type** → add to `shared/types.ts`

@@ -1,17 +1,17 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Sparkles, User, Check, Search } from 'lucide-react';
+import { Sparkles, Check, Search } from 'lucide-react';
 import { Message } from '@/shared/types';
-import { KaiLogo } from '../../common/KaiLogo';
 import { cn } from '@/lib/cn';
 import { truncate } from './modal.utils';
+import { MessagePreviewRow } from './MessagePreviewRow';
 
 interface MessageSelectorProps {
   messages: Message[];
   selectedIds: Set<string>;
   firstSelectedRole: 'user' | 'assistant' | null;
-  firstSelectedType?: string | null;
+  firstSelectedType?: Message['type'] | null;
   onToggle: (id: string) => void;
   onSelectAll: () => void;
   onSelectNone: () => void;
@@ -52,6 +52,10 @@ export function MessageSelector({
   const filtered = debouncedQuery
     ? messages.filter((m) => m.content?.toLowerCase().includes(debouncedQuery.toLowerCase()))
     : messages;
+
+  // First selected message (by list order) — computed once instead of per-row, so the
+  // invalid-first highlight below is O(n) over the list rather than O(n²).
+  const firstSelectedId = messages.find((m) => selectedIds.has(m.msgId))?.msgId ?? null;
 
   return (
     <div className="flex flex-col flex-1 min-h-0">
@@ -104,7 +108,7 @@ export function MessageSelector({
               return (
                 <button
                   key={msg.msgId}
-                  onClick={() => handleCompactionGroupToggle(msg.msgId, msg.originalMsgIds ?? [])}
+                  onClick={() => handleCompactionGroupToggle(msg.msgId, msg.compaction?.originalMsgIds ?? [])}
                   className={cn('w-full text-left flex items-start gap-2.5 px-2.5 py-2 rounded-lg border transition-all', isSelected ? 'bg-teal-50 border-teal-200' : 'bg-gray-50 border-transparent hover:border-gray-200 hover:bg-gray-100')}
                 >
                   <div className={cn('flex-shrink-0 w-4 h-4 mt-0.5 rounded border flex items-center justify-center transition-all', isSelected ? 'bg-teal-600 border-teal-600' : 'bg-white border-gray-300')}>
@@ -112,7 +116,7 @@ export function MessageSelector({
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5 mb-0.5">
-                      <span className="text-[11px] font-semibold text-teal-700">{msg.compactionName}</span>
+                      <span className="text-[11px] font-semibold text-teal-700">{msg.compaction?.name}</span>
                       <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-teal-100 text-teal-600 font-medium">summary</span>
                     </div>
                     <div className="text-[11px] text-gray-500 line-clamp-1">{truncate(msg.content, 60)}</div>
@@ -149,9 +153,7 @@ export function MessageSelector({
             }
 
             const isSelected = selectedIds.has(msg.msgId);
-            const isUser = msg.role === 'user';
-            const isFirstSelected = isSelected && messages.find(m => selectedIds.has(m.msgId))?.msgId === msg.msgId;
-            const isInvalidFirst = isFirstSelected && !isUser;
+            const isInvalidFirst = msg.msgId === firstSelectedId && msg.role !== 'user';
 
             return (
               <button
@@ -173,24 +175,16 @@ export function MessageSelector({
                   {isSelected && <Check className="w-2.5 h-2.5 text-white" />}
                 </div>
 
-                {isUser ? (
-                  <div className="flex-shrink-0 w-5 h-5 rounded-full bg-gray-700 flex items-center justify-center mt-0.5">
-                    <User className="w-3 h-3 text-white" />
-                  </div>
-                ) : (
-                  <div className="flex-shrink-0 w-5 h-5 rounded-md overflow-hidden mt-0.5">
-                    <KaiLogo size={20} />
-                  </div>
-                )}
-
-                <div className="flex-1 min-w-0">
-                  <div className={cn('text-[11px] font-semibold mb-0.5', isUser ? 'text-gray-700' : 'text-violet-700')}>
-                    {isUser ? 'You' : 'K-AI'} · #{i + 1}
-                  </div>
-                  <div className="text-[12px] text-gray-600 leading-snug line-clamp-2">
-                    {truncate(msg.content, 80)}
-                  </div>
-                </div>
+                <MessagePreviewRow
+                  message={msg}
+                  avatarSize={20}
+                  truncateAt={80}
+                  clampClass="line-clamp-2"
+                  labelClass="text-[11px]"
+                  contentClass="text-[12px]"
+                  labelSuffix={` · #${i + 1}`}
+                  avatarClassName="mt-0.5"
+                />
               </button>
             );
           })

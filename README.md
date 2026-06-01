@@ -31,7 +31,7 @@
 | Styling | Tailwind CSS 3 + `cn()` utility |
 | State | Zustand 5 |
 | Auth | AWS Cognito via AWS Amplify 6 |
-| Streaming | AWS Lambda (server-sent events via `ReadableStream`) |
+| Streaming | AWS Lambda Function URL (NDJSON over response streaming, parsed via `fetch` + `ReadableStream`) |
 | Charts | Recharts |
 | Branch graph | React Flow |
 | Markdown | react-markdown + remark-gfm |
@@ -87,11 +87,11 @@ K-AI requires two backend services, both open-sourced separately:
 | Service | Repo | Purpose | Environment variable |
 |---|---|---|---|
 | REST API | [chatbot-fast-api-lambda](https://github.com/fareedzafar657/chatbot-fast-api-lambda) | Sessions, branches, messages, usage stats | `NEXT_PUBLIC_API_URL` |
-| Streaming Lambda | [chatbot-streaming-lambda](https://github.com/fareedzafar657/chatbot-streaming-lambda) | Real-time token streaming via SSE | `NEXT_PUBLIC_STREAMING_LAMBDA_URL` |
+| Streaming Lambda | [chatbot-streaming-lambda](https://github.com/fareedzafar657/chatbot-streaming-lambda) | Real-time token streaming (NDJSON) | `NEXT_PUBLIC_STREAMING_LAMBDA_URL` |
 
 Both repos include their own deployment and setup instructions. You will also need an **AWS Cognito User Pool** — create one in the AWS console and copy the User Pool ID, App Client ID, and region into your `.env.local`.
 
-All API calls on the frontend are routed through `lib/api.ts`. Streaming logic lives in `lib/stream.ts`.
+All calls to the K-AI **REST API** go through `lib/api.ts` (axios). **Streaming Lambda** calls go through `lib/stream.ts` (raw `fetch` + `ReadableStream` for NDJSON). The only other direct outbound HTTP is the BYOK key probe in `shared/ai-config.ts`, which hits Anthropic / Google directly to check model availability with the user's own key.
 
 ---
 
@@ -115,7 +115,7 @@ app/
 
 lib/
 ├── api.ts              # All backend API calls
-├── stream.ts           # SSE streaming logic
+├── stream.ts           # NDJSON streaming reader (fetch + ReadableStream)
 ├── store.ts            # Chat + session Zustand store
 ├── authStore.ts        # Auth Zustand store
 ├── amplify.ts          # AWS Amplify config
@@ -124,7 +124,8 @@ lib/
 
 shared/
 ├── types.ts            # All domain + API types
-└── branch-modal.ts     # Branch modal UI types + constants
+├── branch-modal.ts     # Branch modal UI types + constants
+└── ai-config.ts        # AI provider model lists, prompt suggestions, BYOK availability probes
 ```
 
 ---

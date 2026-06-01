@@ -4,7 +4,7 @@ import { useState, useMemo, ReactNode } from 'react';
 import { ArrowUpDown, GitBranch, Check } from 'lucide-react';
 import { Branch } from '@/shared/types';
 import { cn } from '@/lib/cn';
-type SortKey = 'name' | 'created' | 'messages';
+type SortKey = 'name' | 'created';
 type SortDir = 'asc' | 'desc';
 
 function formatDate(d: Date): string {
@@ -15,16 +15,15 @@ function formatTime(d: Date): string {
   return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 }
 
-function sortBranches<T extends { label: string; createdAt: string; selectedMsgIds: string[] }>(
+function sortBranches<T extends { label: string; createdAt: string }>(
   branches: T[],
   sortKey: SortKey,
   sortDir: SortDir
 ): T[] {
   return [...branches].sort((a, b) => {
     let cmp = 0;
-    if (sortKey === 'name')     cmp = a.label.localeCompare(b.label);
-    if (sortKey === 'created')  cmp = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-    if (sortKey === 'messages') cmp = a.selectedMsgIds.length - b.selectedMsgIds.length;
+    if (sortKey === 'name')    cmp = a.label.localeCompare(b.label);
+    if (sortKey === 'created') cmp = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
     return sortDir === 'asc' ? cmp : -cmp;
   });
 }
@@ -113,7 +112,6 @@ export function BranchVersionsView({ branches, activeBranchId, onSwitchBranch }:
                 <HeaderCell className="hidden sm:table-cell">
                   <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Parent</span>
                 </HeaderCell>
-                <HeaderCell className="hidden md:table-cell"><SortBtn label="Msgs"    active={sortKey === 'messages'} onClick={() => toggleSort('messages')} /></HeaderCell>
                 <HeaderCell className="hidden lg:table-cell"><SortBtn label="Created" active={sortKey === 'created'}  onClick={() => toggleSort('created')} /></HeaderCell>
                 <HeaderCell>
                   <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Status</span>
@@ -160,10 +158,6 @@ export function BranchVersionsView({ branches, activeBranchId, onSwitchBranch }:
                           <span className="text-gray-300 italic">root</span>
                         )}
                       </span>
-                    </Cell>
-
-                    <Cell className="hidden md:table-cell">
-                      <span className="text-[12px] text-gray-700 font-medium">{branch.selectedMsgIds.length}</span>
                     </Cell>
 
                     <Cell className="hidden lg:table-cell">
