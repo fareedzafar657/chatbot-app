@@ -16,7 +16,7 @@ export const BEDROCK_MODELS = [
 // both lists must contain the same model IDs or the client will offer models the server rejects.
 const DEMO_BEDROCK_MODELS = [
   {
-    value: "anthropic.claude-sonnet-4-6",
+    value: "us.anthropic.claude-sonnet-4-6",
     label: "Claude Sonnet 4.6",
     note: "Most capable · via Bedrock",
     disabled: false,
