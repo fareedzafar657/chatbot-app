@@ -1,7 +1,7 @@
 import type { Message } from '@/shared/types';
 
 const STREAMING_URL = process.env.NEXT_PUBLIC_STREAMING_LAMBDA_URL!;
-const STREAM_TIMEOUT_MS = 30_000;
+const STREAM_IDLE_TIMEOUT_MS = 30_000;
 const GENERIC_STREAM_ERROR = 'Something went wrong. Please try again.';
 
 interface StreamParams {
@@ -38,8 +38,14 @@ export async function streamChat(
     needsIdToken ? useAuthStore.getState().getIdToken() : Promise.resolve(null),
   ]);
 
-  const timeoutSignal = AbortSignal.timeout(STREAM_TIMEOUT_MS);
-  const combinedSignal = AbortSignal.any([signal, timeoutSignal]);
+  const idleController = new AbortController();
+  let idleTimer = setTimeout(() => idleController.abort(), STREAM_IDLE_TIMEOUT_MS);
+  const resetIdleTimer = () => {
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => idleController.abort(), STREAM_IDLE_TIMEOUT_MS);
+  };
+
+  const combinedSignal = AbortSignal.any([signal, idleController.signal]);
 
   let response: Response;
   try {
@@ -62,6 +68,7 @@ export async function streamChat(
       signal: combinedSignal,
     });
   } catch (err) {
+    clearTimeout(idleTimer);
     if ((err as Error).name === 'AbortError') return;
     console.error('[stream] fetch failed', err);
     callbacks.onError('Request failed. Please try again.');
@@ -97,6 +104,7 @@ export async function streamChat(
       const { done, value } = await reader.read();
       if (done) break;
 
+      resetIdleTimer();
       buffer += decoder.decode(value, { stream: true });
       const lines = buffer.split('\n');
       // Keep the last (possibly incomplete) chunk in the buffer
@@ -129,6 +137,8 @@ export async function streamChat(
       console.error('[stream] read failed', err);
       callbacks.onError(GENERIC_STREAM_ERROR);
     }
+  } finally {
+    clearTimeout(idleTimer);
   }
 }
 
